@@ -8,7 +8,7 @@ AURA is a research and development project that makes industrial inspection robo
 at a supported hardware rate, downmixes to mono, and continuously resamples to
 16 kHz for the local fine-tuned NVIDIA Nemotron RNNT model on the edge device's
 CPU. The module supports streaming inference and NeMo-exported encoder adapters.
-The fine-tuned model files are in `model/`, and loading uses local files only.
+The fine-tuned model files are hosted on Hugging Face at [sensifai/aura](https://huggingface.co/sensifai/aura), and loading uses local files only.
 
 | Topic | Type | Payload |
 | --- | --- | --- |
@@ -31,6 +31,19 @@ python -m pip install -r src/aura_stt/requirements-test.txt
 python -c 'import rclpy, torch, transformers, sounddevice'
 python -m colcon build --symlink-install --packages-select aura_stt
 source install/setup.bash
+```
+
+### Download model weights
+
+Download the fine-tuned model files from Hugging Face ([sensifai/aura](https://huggingface.co/sensifai/aura)) into `model/`:
+
+```bash
+# Using huggingface-cli
+pip install huggingface_hub
+huggingface-cli download sensifai/aura --local-dir model
+
+# Or clone directly using git
+git clone https://huggingface.co/sensifai/aura model
 ```
 
 Run with the fine-tuned model in the project's `model/` directory:
