@@ -1,0 +1,9 @@
+# Install in the SAME Python interpreter used by your ROS2 distribution.
+# These versions support the Transformers Nemotron RNNT streaming API.
+numpy>=1.26
+torch>=2.6
+transformers>=5.13,<6
+safetensors>=0.4
+sounddevice>=0.5
+soxr>=0.5
+librosa>=0.11

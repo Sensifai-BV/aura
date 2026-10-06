@@ -1,0 +1,3 @@
+pytest>=7
+# Ubuntu's system coverage can be older than the API used by recent numba.
+coverage>=7.6

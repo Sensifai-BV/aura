@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>aura_stt</name>
+  <version>0.1.0</version>
+  <description>Microphone to ROS2 text using fine-tuned Nemotron streaming ASR.</description>
+  <maintainer email="info@sensifai.com">AURA contributors</maintainer>
+  <license>Proprietary</license>
+  <buildtool_depend>ament_python</buildtool_depend>
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>rcl_interfaces</exec_depend>
+  <exec_depend>std_msgs</exec_depend>
+  <exec_depend>launch</exec_depend>
+  <exec_depend>launch_ros</exec_depend>
+  <exec_depend>ament_index_python</exec_depend>
+  <exec_depend>python3-numpy</exec_depend>
+  <test_depend>python3-pytest</test_depend>
+  <export><build_type>ament_python</build_type></export>
+</package>

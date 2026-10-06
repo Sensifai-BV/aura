@@ -1,0 +1,22 @@
+aura_stt:
+  ros__parameters:
+    # Relative to the working directory; run from the project root or override.
+    model_dir: model
+    device: cpu
+    input_device: ""
+    input_sample_rate: 0  # auto: probe supported capture rates, preferring 48 kHz
+    capture_channels: 0  # auto: try stereo, mono, then the full native channel count
+    capture_block_ms: 100
+    input_latency: 0.0  # 0 uses the device's high-latency setting; otherwise seconds
+    prefer_usb: true
+    include_internal: false  # prefer external inputs; internal inputs remain eligible
+    audio_file: ""  # optional real-time replay of a 16 kHz mono PCM16 recording
+    latency_ms: 560
+    num_threads: 4
+    debug_audio: false
+    transcript_topic: /aura_transcript
+    partial_topic: /aura_partial_transcript
+    speech_threshold_db: -40.0
+    silence_s: 0.8
+    pre_roll_s: 0.3
+    max_utterance_s: 20.0
