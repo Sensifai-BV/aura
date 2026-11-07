@@ -2,7 +2,7 @@
 
 The ARISE middleware (Orion-LD with native DDS, TimescaleDB, Mintaka, Grafana, aura-monitor, WireCloud) runs on
 **Coolify, server `server-2`, project `aura`, environment `production`**, from `docker-compose.prod.yml`. Public address:
-**https://arise.sensifai.com**.
+**https://aura-dash.sensifai.com**.
 
 ```
 Real Artaban robot  --DDS domain 0--> orion      -> mintaka      -> aura-monitor  -> WireCloud dashboard "Aura"
@@ -19,10 +19,10 @@ and each Mintaka reads one database.
 
 | What | Where | Notes |
 | --- | --- | --- |
-| WireCloud (both dashboards) | `https://arise.sensifai.com` (Traefik, TLS) | login required; own admin account, no default `admin/admin` |
-| Grafana | `https://arise.sensifai.com/grafana/` | own login, anonymous access off |
-| Mission report pages | `https://arise.sensifai.com/monitor/aura/reports/<id>` and `/monitor/sim/...` | read only (GET); the monitors' APIs are **not** exposed |
-| Live updates | `https://arise.sensifai.com/eventsource` | ngsi-proxy, needed by the dashboards |
+| WireCloud (both dashboards) | `https://aura-dash.sensifai.com` (Traefik, TLS) | login required; own admin account, no default `admin/admin` |
+| Grafana | `https://aura-dash.sensifai.com/grafana/` | own login, anonymous access off |
+| Mission report pages | `https://aura-dash.sensifai.com/monitor/aura/reports/<id>` and `/monitor/sim/...` | read only (GET); the monitors' APIs are **not** exposed |
+| Live updates | `https://aura-dash.sensifai.com/eventsource` | ngsi-proxy, needed by the dashboards |
 | DDS, real robot (domain 0) | UDP 7400, 7410-7419 on the server's address | robot sets `ROS_STATIC_PEERS` to it |
 | DDS, Simulator (domain 1) | UDP 7650, 7660-7669 on the server's address | |
 
@@ -31,7 +31,7 @@ and Mintaka server-side, so the browser never needs them).
 
 **Firewall:** Coolify publishes the DDS ports on the host but cannot open the host or cloud firewall. Open the UDP ports
 above there, and **restrict them to the robot's address** (DDS has no authentication: anyone who can reach the port can
-write telemetry). `arise.sensifai.com` is behind Cloudflare's proxy, which carries HTTPS only: robots must use the
+write telemetry). `aura-dash.sensifai.com` is behind Cloudflare's proxy, which carries HTTPS only: robots must use the
 server's IP address (or a DNS-only name) for DDS, never the proxied name. Robot side: [DDS_INTEGRATION.md](DDS_INTEGRATION.md).
 
 ## Secrets

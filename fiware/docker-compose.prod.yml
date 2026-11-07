@@ -124,7 +124,7 @@ services:
       ORION_URL: http://orion:1026
       MINTAKA_URL: http://mintaka:8080
       GRAFANA_URL: http://grafana:3000
-      GRAFANA_PUBLIC_URL: ${ARISE_PUBLIC_URL:-https://arise.sensifai.com}/grafana
+      GRAFANA_PUBLIC_URL: ${ARISE_PUBLIC_URL:-https://aura-dash.sensifai.com}/grafana
       MONITOR_NOTIFY_URL: http://aura-monitor:8090/ngsi-ld/notify
     <<: *logging
 
@@ -194,7 +194,7 @@ services:
       ORION_URL: http://orion-sim:1026
       MINTAKA_URL: http://mintaka-sim:8080
       GRAFANA_URL: http://grafana:3000
-      GRAFANA_PUBLIC_URL: ${ARISE_PUBLIC_URL:-https://arise.sensifai.com}/grafana
+      GRAFANA_PUBLIC_URL: ${ARISE_PUBLIC_URL:-https://aura-dash.sensifai.com}/grafana
       MONITOR_NOTIFY_URL: http://monitor-sim:8090/ngsi-ld/notify
     <<: *logging
 
@@ -233,7 +233,7 @@ services:
       GF_SECURITY_ADMIN_PASSWORD: ${SERVICE_PASSWORD_GRAFANA}
       GF_AUTH_ANONYMOUS_ENABLED: "false"
       GF_SECURITY_ALLOW_EMBEDDING: "false"
-      GF_SERVER_ROOT_URL: ${ARISE_PUBLIC_URL:-https://arise.sensifai.com}/grafana/
+      GF_SERVER_ROOT_URL: ${ARISE_PUBLIC_URL:-https://aura-dash.sensifai.com}/grafana/
       GF_SERVER_SERVE_FROM_SUB_PATH: "true"
       GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/aura/01-artaban-telemetry.json
       GF_USERS_DEFAULT_THEME: dark
@@ -253,7 +253,7 @@ services:
       DEBUG: "False"
       LOGLEVEL: info
       FORWARDED_ALLOW_IPS: "*"
-      ALLOWED_HOSTS: arise.sensifai.com wirecloud wirecloud-nginx localhost
+      ALLOWED_HOSTS: aura-dash.sensifai.com wirecloud wirecloud-nginx localhost
       SECRET_KEY: ${SERVICE_PASSWORD_64_WIRECLOUDKEY}
       CSRF_COOKIE_SECURE: "true"
       SESSION_COOKIE_SECURE: "true"
@@ -307,9 +307,9 @@ services:
       wirecloud:
         condition: service_healthy
     environment:
-      AURA_VERSION: "1.2.3"                      # keep equal to VERSION in wirecloud/build.py
+      AURA_VERSION: "1.2.4"                      # keep equal to VERSION in wirecloud/build.py
       AURA_RECREATE_WORKSPACE: ${AURA_RECREATE_WORKSPACE:-0}
-      ARISE_PUBLIC_URL: ${ARISE_PUBLIC_URL:-https://arise.sensifai.com}
+      ARISE_PUBLIC_URL: ${ARISE_PUBLIC_URL:-https://aura-dash.sensifai.com}
       WIRECLOUD_ADMIN_USER: ${ARISE_ADMIN_USER:-arise-admin}
       WIRECLOUD_ADMIN_PASSWORD: ${SERVICE_PASSWORD_WIRECLOUD}
     volumes:

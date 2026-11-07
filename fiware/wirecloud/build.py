@@ -18,7 +18,7 @@ from xml.sax.saxutils import escape, quoteattr
 
 ROOT = Path(__file__).resolve().parent
 DIST = Path(sys.argv[1]) if len(sys.argv) > 1 else ROOT / "dist"
-VENDOR, VERSION = "Sensifai", "1.2.3"
+VENDOR, VERSION = "Sensifai", "1.2.4"
 NS = "http://wirecloud.conwet.fi.upm.es/ns/macdescription/1"
 AUTHOR, EMAIL = "Sensifai", "javad@sensifai.com"
 
@@ -70,7 +70,7 @@ OPERATOR_PREFS = ("ngsi_server", "ngsi_proxy_public", "ngsi_proxy_internal", "en
 
 # Dashboards built from the same widgets: (mashup name, title, simulator?). They differ only in preference values:
 # the Simulator reads its own broker (orion-sim / mintaka-sim, fed on DDS domain 1), the Aura dashboard the real
-# robot's (orion / mintaka, DDS domain 0). ARISE_PUBLIC_URL (e.g. https://arise.sensifai.com) sets the browser-facing
+# robot's (orion / mintaka, DDS domain 0). ARISE_PUBLIC_URL (e.g. https://aura-dash.sensifai.com) sets the browser-facing
 # addresses; without it the defaults of the local compose file apply.
 PUBLIC_URL = os.environ.get("ARISE_PUBLIC_URL", "").rstrip("/")
 DASHBOARDS = [("aura-dashboard", "AURA · Artaban HRI condition monitoring", False),

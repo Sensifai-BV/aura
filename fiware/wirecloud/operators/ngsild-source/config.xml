@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<operator xmlns="http://wirecloud.conwet.fi.upm.es/ns/macdescription/1" vendor="Sensifai" name="aura-ngsild-source" version="1.2.3">
+<operator xmlns="http://wirecloud.conwet.fi.upm.es/ns/macdescription/1" vendor="Sensifai" name="aura-ngsild-source" version="1.2.4">
   <details>
     <title>AURA NGSI-LD source</title>
     <authors>Sensifai</authors>

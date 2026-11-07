@@ -185,7 +185,7 @@ services:
       wirecloud: { condition: service_healthy }
     restart: "no"
     environment:
-      AURA_VERSION: "1.2.3"                                   # keep equal to VERSION in wirecloud/build.py
+      AURA_VERSION: "1.2.4"                                   # keep equal to VERSION in wirecloud/build.py
       AURA_RECREATE_WORKSPACE: ${AURA_RECREATE_WORKSPACE:-0}  # 1 = rebuild admin/aura from the mashup
     volumes:
       - wirecloud-data:/opt/wirecloud_instance/data

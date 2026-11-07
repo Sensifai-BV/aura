@@ -33,7 +33,12 @@ done
 python /dev/stdin <<'PY'
 import http.cookiejar, json, os, re, urllib.error, urllib.parse, urllib.request
 base = "http://wirecloud:8000"
-jar = http.cookiejar.CookieJar()
+# The site sets Secure cookies (CSRF_COOKIE_SECURE / SESSION_COOKIE_SECURE) but this job talks to it over the internal
+# plain-HTTP address: allow the jar to send them back, or the login is rejected with 403.
+class InternalPolicy(http.cookiejar.DefaultCookiePolicy):
+    def return_ok_secure(self, cookie, request):  # works on the image's Python 3.6 too
+        return True
+jar = http.cookiejar.CookieJar(InternalPolicy())
 op = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(jar))
 page = op.open(base + "/login").read().decode()
 token = re.search(r"name=[\'\"]csrfmiddlewaretoken[\'\"] value=[\'\"]([^\'\"]+)", page).group(1)
@@ -42,7 +47,7 @@ form = urllib.parse.urlencode({"csrfmiddlewaretoken": token, "username": os.envi
 op.open(urllib.request.Request(base + "/login", form, {"Referer": base + "/login"}))
 csrf = next(c.value for c in jar if c.name == "csrftoken")
 headers = {"Content-Type": "application/json", "Accept": "application/json", "X-CSRFToken": csrf, "Referer": base + "/"}
-version = os.environ.get("AURA_VERSION", "1.2.3")
+version = os.environ.get("AURA_VERSION", "1.2.4")
 dashboards = [("aura", "Aura", "Sensifai/aura-dashboard/%s" % version),
               ("simulator", "Simulator", "Sensifai/aura-simulator/%s" % version)]
 workspaces = json.load(op.open(urllib.request.Request(base + "/api/workspaces", headers=headers)))
