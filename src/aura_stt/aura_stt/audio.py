@@ -1,6 +1,7 @@
 """Bounded, thread-safe audio storage and energy-based utterance endpoints."""
 
 import threading
+import time
 from collections import deque
 
 import numpy as np
@@ -17,6 +18,7 @@ class SampleBuffer:
         self._data = np.empty(0, dtype=np.float32)
         self._start = 0
         self._closed = False
+        self.closed_at = None  # monotonic time of the endpoint, for final-result latency
 
     def write(self, block):
         with self._cv:
@@ -46,6 +48,8 @@ class SampleBuffer:
 
     def close(self):
         with self._cv:
+            if self.closed_at is None:
+                self.closed_at = time.monotonic()
             self._closed = True
             self._cv.notify_all()
 

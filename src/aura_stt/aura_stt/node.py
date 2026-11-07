@@ -1,5 +1,6 @@
 """ROS2 microphone capture with inference isolated from the executor."""
 
+import collections
 import queue
 import signal
 import threading
@@ -8,6 +9,7 @@ import time
 import rclpy
 from rclpy.node import Node
 from rclpy.executors import ExternalShutdownException
+from aura_interfaces.msg import ModuleStatus
 from std_msgs.msg import String
 
 from .asr import StreamingTranscriber
@@ -36,6 +38,9 @@ class SttNode(Node):
         self.last_audio_diagnostic = time.monotonic()
         self.last_xruns = 0
         self.last_dropped_blocks = 0
+        self.final_times = collections.deque()
+        self.final_latency_ms = collections.deque(maxlen=20)
+        self.partial_count = 0
         try:
             defaults = SttConfig.defaults()
             for name, default in defaults.items():
@@ -46,6 +51,7 @@ class SttNode(Node):
             config = self.config
             self.final_publisher = self.create_publisher(String, config.transcript_topic, 10)
             self.partial_publisher = self.create_publisher(String, config.partial_topic, 10)
+            self.status_publisher = self.create_publisher(ModuleStatus, config.status_topic, 10)
             self.segmenter = UtteranceSegmenter(
                 self._start_session, threshold_db=config.speech_threshold_db,
                 silence_s=config.silence_s, pre_roll_s=config.pre_roll_s,
@@ -65,6 +71,7 @@ class SttNode(Node):
                 source_name = (f"dev#{device.index} {device.name}; "
                                f"{device.sample_rate} Hz/{device.channels}ch -> 16000 Hz mono")
             self.create_timer(0.02, self._publish)
+            self.create_timer(1.0, self._status)
             for target, name in ((self._segment_audio, "aura-audio"), (self._recognize, "aura-asr")):
                 thread = threading.Thread(target=target, name=name, daemon=True)
                 self.threads.append(thread)
@@ -160,8 +167,12 @@ class SttNode(Node):
                     break
                 text = self.transcriber.transcribe(
                     self.current_buffer, lambda text: self._emit("partial", text))
+                closed_at = self.current_buffer.closed_at
                 self.current_buffer = None
                 if text:
+                    if closed_at is not None:
+                        self.final_latency_ms.append((time.monotonic() - closed_at) * 1000)
+                    self.final_times.append(time.time())
                     self._emit("final", text)
         except Exception as exc:
             self._fail(exc)
@@ -201,9 +212,27 @@ class SttNode(Node):
             except queue.Empty:
                 break
             publisher = self.final_publisher if kind == "final" else self.partial_publisher
+            self.partial_count += kind != "final"
             publisher.publish(String(data=text))
             if kind == "final":
                 self.get_logger().info(text)
+
+    def _status(self):
+        now = time.time()
+        while self.final_times and now - self.final_times[0] > 60:
+            self.final_times.popleft()
+        status = ModuleStatus(name="aura_stt: recognizer", hardware_id=str(self.transcriber.device))
+        if self.failure is not None:
+            status.level, status.message = ModuleStatus.ERROR, str(self.failure)
+        else:
+            status.level, status.message = ModuleStatus.OK, "listening"
+        latency = (sum(self.final_latency_ms) / len(self.final_latency_ms)) if self.final_latency_ms else 0.0
+        values = dict(rate=round(len(self.final_times), 2), rate_unit="/min", latency_ms=round(latency, 1),
+                      latency_setting_ms=self.config.latency_ms, captured_s=round(self.captured_samples / SAMPLE_RATE, 1),
+                      peak=round(self.capture_peak, 3), device=str(self.transcriber.device))
+        status.keys, status.values = list(values), [str(v) for v in values.values()]
+        status.header.stamp = self.get_clock().now().to_msg()
+        self.status_publisher.publish(status)
 
     def close(self):
         self.stop_event.set()

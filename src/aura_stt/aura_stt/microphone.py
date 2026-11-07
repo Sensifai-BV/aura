@@ -10,7 +10,10 @@ import queue
 import threading
 
 import numpy as np
-import sounddevice as sd
+try:  # PortAudio is only needed for live capture; WAV replay must work without an audio server
+    import sounddevice as sd
+except Exception:  # PortAudioError is not an OSError
+    sd = None
 import soxr
 
 from .audio import SAMPLE_RATE

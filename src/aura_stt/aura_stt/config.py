@@ -24,6 +24,7 @@ class SttConfig:
     debug_audio: bool = False
     transcript_topic: str = "/aura_transcript"
     partial_topic: str = "/aura_partial_transcript"
+    status_topic: str = "/aura/stt/status"
     speech_threshold_db: float = -40.0
     silence_s: float = 0.8
     pre_roll_s: float = 0.3
