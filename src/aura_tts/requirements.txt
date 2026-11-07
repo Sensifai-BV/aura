@@ -1,0 +1,6 @@
+# Install in the SAME Python interpreter used by your ROS2 distribution
+# (e.g. a --system-site-packages venv). Supertonic needs sherpa-onnx >= 1.13;
+# Piper/VITS voices need espeak-ng, which sherpa-onnx 2.0 removed: use 1.13.x for those.
+numpy>=1.26
+sherpa-onnx>=1.13.8
+sounddevice>=0.5

@@ -1,0 +1,29 @@
+aura_tts:
+  ros__parameters:
+    # sherpa-onnx model directory; Supertonic 3, Kokoro or Piper/VITS is detected from its files.
+    # Relative paths are tried against the working directory first, then the package share.
+    model_dir: model/supertonic-3-int8   # bundled with the package (share/aura_tts/model)
+    model_id: ""            # defaults to the directory name
+    num_threads: 2          # Supertonic is faster on 2 than 4 threads and leaves cores for STT / LLM
+    provider: cpu
+    voice: 0                # Supertonic 0..9
+    speed: 1.0
+    num_steps: 5            # Supertonic flow-matching steps
+    say_topic: /aura/speaker/say
+    speaking_topic: /aura/speaker/speaking
+    status_topic: /aura/speaker/status
+    output_device: ""       # "" = default output, an index or name, "none" = no sound device (headless)
+    gain: 1.0
+    normalize_text: true    # spell equipment tags (V-104 -> vee one zero four), expand units and numbers
+    # Synthesised at start-up: these play with no synthesis delay. Match aura_intent/dialog.py.
+    cache_phrases:
+      - "Stop, executing."
+      - "Pause, executing."
+      - "Cancel, executing."
+      - "Resume, executing."
+      - "Sorry, I did not understand. Please repeat."
+      - "There is nothing to confirm."
+      - "Sorry, I cannot do that."
+      - "No answer, command dropped."
+    max_chars: 400
+    diagnostics_period_s: 1.0
