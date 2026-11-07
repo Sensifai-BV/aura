@@ -76,6 +76,11 @@ Git by Coolify through the `sensifai-bot` GitHub app. Orion-LD downloads the NGS
   and dashboards, the WireCloud init sources). Coolify does not copy repository files for relative bind mounts of a Git
   compose application, it creates empty folders instead, so the compose file uses no bind mounts and a config change
   needs a redeploy (rebuild).
+- **Performance:** WireCloud serves widget files from `/showcase/media/<vendor>/<widget>/<version>/...` without any cache
+  headers, so each dashboard load re-downloaded the files of all 14 widgets. nginx now caches them (7 days, keyed by the
+  versioned URL) and adds `Cache-Control` so the browser and Cloudflare can keep them too; a changed widget therefore
+  has to ship as a new version, never under the same one. The remaining cost is one API round trip per widget, which
+  depends on the visitor's network path (a VPN that routes the browser through the server itself adds a hairpin).
 - **Widget change:** edit the widget, bump `VERSION` in `wirecloud/build.py`, `version=` in
   `wirecloud/operators/ngsild-source/config.xml` and `AURA_VERSION` in both compose files, redeploy with
   `AURA_RECREATE_WORKSPACE=1` once to rebuild the two dashboards from the new mashups.
