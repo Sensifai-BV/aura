@@ -21,20 +21,6 @@ topic to entity id, entity type and attribute name.
 
 ## What runs where
 
-**Server** (see [PRODUCTION.md](PRODUCTION.md) for the Coolify deployment, `docker-compose.yml` for local use):
-
-```bash
-cd fiware
-docker compose up -d --build        # Orion-LD, Mongo, TimescaleDB, Mintaka, Grafana, aura-monitor, WireCloud, ngsi-proxy
-docker compose up wirecloud-init    # one-off: WireCloud widgets and dashboard
-```
-
-Orion-LD needs `fiware/orion-ld:1.10.0` (amd64), `-wip dds`, the mapping mounted at `/root/.orionld`, and **UDP reachable
-from the robot**. Fast DDS uses UDP 7400 + 250 x domain for discovery and 7410 + 250 x domain (+ 2 per participant)
-upwards for unicast; for domain 0 publish UDP 7400 and 7410-7419.
-
-**Robot:**
-
 - ROS 2 with **Fast DDS** (`rmw_fastrtps_cpp`), the same **domain** as the broker (0);
 - this repo's `aura_interfaces` package built (the custom messages must exist on the robot);
 - the AURA modules you run: `aura_stt`, `aura_intent`, `aura_tts`, `aura_gesture`.
@@ -65,12 +51,7 @@ by publishing an honest `"starting"` module status before the models load (`tool
 Plain DDS discovery does not survive NAT (a robot advertises its private address), so the production server accepts a
 TLS-encrypted TCP connection instead. Both ends run `eProsima DDS Router`, built by `fiware/deploy/ddsrouter.Dockerfile`:
 
-- **Server** (`ddsrouter` service of `docker-compose.prod.yml`): listens on TCP 11800, bridges domain 0 to Orion-LD, and
-  runs a small ROS 2 node that announces the message types on the domain. Orion-LD creates its readers only after it sees
-  a writer with the message schema, and DDS Router only creates a writer for data that comes from the robot, so without
-  the announcer nothing would flow. The node publishes no samples: every entity stays `"uninitialized"` until the real
-  robot sends data.
-- **Client** (on the robot or any machine on the robot's LAN): connects out to the server, bridges the local domain.
+**Client** (on the robot or any machine on the robot's LAN): connects out to the server, bridges the local domain.
   The allow-list is generated from `orion/config-dds.json`: only the 14 mapped topics cross the link.
 
 Run the client with Docker on the robot's computer (host network, so it sees the ROS 2 nodes; build the image from the repo

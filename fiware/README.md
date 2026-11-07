@@ -36,8 +36,7 @@ docker compose up -d --build
 ```
 
 This is the local development stack (one broker, default logins). The **production** deployment on Coolify has two
-brokers, two dashboards (Aura and Simulator), generated secrets and resource limits: see
-[docs/PRODUCTION.md](docs/PRODUCTION.md). How a robot connects over DDS: [docs/DDS_INTEGRATION.md](docs/DDS_INTEGRATION.md).
+brokers, two dashboards (Aura and Simulator). How a robot connects over DDS: [docs/DDS_INTEGRATION.md](docs/DDS_INTEGRATION.md).
 
 A mission takes about 10 minutes, followed by charging at the dock. Each finished mission produces a
 `MissionReport` entity and an HTML report at `http://localhost:8090/reports/<missionId>`.
@@ -125,7 +124,7 @@ to `WIDGETS` and `TABS` in `build.py`.
 | `grafana/` | provisioning (datasources, alert rules, contact point) and dashboards; regenerate with `python3 grafana/build_dashboards.py` |
 | `orion/config-dds.json` | ROS 2 topic → NGSI-LD attribute mapping (allowlist) |
 | `orion/config-dds-sim.json` | same mapping on DDS domain 1 (the Simulator broker in production) |
-| `docker-compose.prod.yml` | production stack for Coolify: two brokers, two dashboards, secrets, resource limits, [docs/PRODUCTION.md](docs/PRODUCTION.md) |
+| `docker-compose.prod.yml` | production stack for Coolify: two brokers, two dashboards, secrets, resource limits|
 | `wirecloud/init.prod.sh`, `wirecloud/nginx/nginx.prod.conf` | production WireCloud provisioning (own admin account, Aura + Simulator dashboards) and routing |
 | `docs/DDS_INTEGRATION.md` | how a robot connects to Orion-LD over DDS: topics, ports, how to run, how to check |
 
