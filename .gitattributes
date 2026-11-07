@@ -1,0 +1,2 @@
+src/aura_tts/model/**/*.onnx filter=lfs diff=lfs merge=lfs -text
+src/aura_tts/model/**/*.bin filter=lfs diff=lfs merge=lfs -text
