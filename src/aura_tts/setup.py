@@ -11,7 +11,7 @@ setup(
         ("share/aura_tts", ["package.xml"]),
         ("share/aura_tts/config", glob("config/*.yaml")),
         ("share/aura_tts/launch", glob("launch/*.launch.py")),
-        # Supertonic 3 int8 (MIT code, OpenRAIL-M weights), chosen in docs/design/tts-model-selection.md
+        # Supertonic 3 int8 (MIT code, OpenRAIL-M weights)
         ("share/aura_tts/model/supertonic-3-int8", glob("model/supertonic-3-int8/*")),
     ],
     install_requires=["setuptools"],

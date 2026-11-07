@@ -4,7 +4,7 @@ Synthesises tag- and number-heavy prompts with Supertonic 3, raw and normalised,
 and checks whether each listener heard the tag and value tokens that matter
 (WER against the raw text would penalise "84 degrees Celsius" for "84 °C").
 
-    python normalize_check.py > ../../docs/design/tts_ab/normalize_check.txt
+    python normalize_check.py > normalize_check.txt
 """
 
 import sys

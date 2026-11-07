@@ -1,6 +1,6 @@
 """Aggregate synth / ASR / ROS 2 results into CSV tables and figures.
 
-    python report.py --results results --ros results_ros2 --out ../../docs/design/tts_ab
+    python report.py --results results --ros results_ros2 --out report
 """
 
 import argparse
@@ -50,7 +50,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--results", default="results")
     ap.add_argument("--ros", default="results_ros2")
-    ap.add_argument("--out", default="../../docs/design/tts_ab")
+    ap.add_argument("--out", default="report")
     args = ap.parse_args()
     res, out = Path(args.results), Path(args.out)
     (out / "figs").mkdir(parents=True, exist_ok=True)

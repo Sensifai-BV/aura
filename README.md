@@ -2,11 +2,60 @@
 
 AURA is a research and development project that makes industrial inspection robots easier and safer for non-expert operators to supervise in hazardous or contaminated environments such as oil and gas facilities, waste treatment plants, and post-disaster sites. Instead of requiring specialised training or fragile single-channel control, AURA lets an operator direct a robot naturally — by speaking to it and by using a small set of clear hand gestures — while the robot communicates back what it has understood and what it is about to do. The system recognises not only the command itself but also whether the operator is genuinely addressing the robot and how confident it is in what it heard or saw, so control stays reliable even when noise, protective equipment, or difficult site conditions would otherwise break communication down.
 
+## Architecture
+
+AURA is a set of ROS 2 nodes on the robot plus an optional server side (the ARISE middleware). Every box below is its
+own process and talks to the others only through ROS 2 topics (Fast DDS), so each module can be started, replaced or
+tested on its own.
+
+```mermaid
+flowchart LR
+  subgraph robot["Robot (ROS 2, Fast DDS)"]
+    mic([Microphone]) --> stt["aura_stt<br/>speech to text"]
+    cam([Camera]) --> camera["aura_camera"] --> gesture["aura_gesture<br/>hand gestures"]
+    platform["Artaban platform<br/>battery, odometry, status"]
+    stt -- "/aura_transcript" --> intent["aura_intent<br/>speech + gesture fusion"]
+    gesture -- "/aura/gesture/intent" --> intent
+    platform -- "/artaban/status<br/>/artaban/environment" --> intent
+    intent -- "/aura/speaker/say" --> tts["aura_tts<br/>speaker"] --> spk([Loudspeaker])
+    intent -- "/aura/intent/event" --> ctl["robot control<br/>(executes ACCEPT)"]
+  end
+
+  subgraph server["Server: ARISE middleware (fiware/)"]
+    orion["Orion-LD<br/>native DDS bridge"]
+    orion --> ts[("TimescaleDB")] --> mintaka["Mintaka"] --> grafana["Grafana"]
+    orion <--> monitor["aura-monitor<br/>KPIs, alerts, reports"]
+    orion --> proxy["ngsi-proxy"] --> wc["WireCloud dashboards"]
+  end
+
+  robot == "DDS topics (UDP, domain 0)" ==> orion
+```
+
+| Package | Role | Input | Output | Model / runtime |
+| --- | --- | --- | --- | --- |
+| `aura_interfaces` | message definitions: `ArtabanStatus`, `EnvironmentReading`, `GestureIntent`, `IntentEvent`, `ModuleStatus` | | | |
+| `aura_stt` | streaming speech to text with endpointing | microphone or a WAV file | `/aura_transcript`, `/aura_partial_transcript`, `/aura/stt/status` | fine-tuned NVIDIA Nemotron RNNT (Transformers, CPU) |
+| `aura_gesture` | camera node and hand-gesture recognition with a confidence-aware k-of-n gate | camera, MJPEG URL or `/aura/camera/image_raw/compressed` | `/aura/gesture/intent`, `/aura/gesture/hypothesis`, `/aura/gesture/detections`, `/aura/gesture/status` | HaGRIDv2 YOLOv10n (ONNX Runtime) |
+| `aura_intent` | turns transcripts and gestures into operator commands, asks for confirmation, publishes every decision | `/aura_transcript`, `/aura/gesture/intent`, `/artaban/status`, `/artaban/environment` | `/aura/intent/event`, `/aura/speaker/say`, `/aura/intent/status` | LFM2.5-1.2B with LoRA, GGUF (llama.cpp) |
+| `aura_tts` | speaks questions and acknowledgements, newest request wins | `/aura/speaker/say` | audio, `/aura/speaker/speaking`, `/aura/speaker/status` | Supertonic 3 int8 (sherpa-onnx) |
+| `fiware/` | ARISE middleware: Orion-LD with native DDS, TimescaleDB, Mintaka, Grafana, `aura-monitor`, WireCloud | the DDS topics above and the robot platform topics | NGSI-LD entities, KPIs, alerts, mission reports, dashboards | Docker Compose |
+
+**One voice command, end to end:** the operator speaks, `aura_stt` publishes the phrase, `aura_intent` parses it
+(`stop`, `pause` and `cancel` execute at once; other commands are held), asks "Did you say ...?" through `aura_tts`, and
+a spoken yes or a thumb-up from `aura_gesture` confirms it. The final decision, with confidence and outcome, is
+published as `IntentEvent` and mirrored to the server, where the dashboards and KPIs are built from it.
+
+More detail: the topic contract and NGSI-LD entities are in [fiware/docs/DATA_MODEL.md](fiware/docs/DATA_MODEL.md);
+how a robot connects to the broker over DDS (ports, discovery, how to run and check) is in
+[fiware/docs/DDS_INTEGRATION.md](fiware/docs/DDS_INTEGRATION.md); the full-stack test tooling is in
+[tools/integration/README.md](tools/integration/README.md).
+
 ## FIWARE condition monitoring (ARISE middleware)
 
 `fiware/` runs the ARISE all-in-one middleware locally: Orion-LD with native ROS 2 / DDS bridging, TimescaleDB,
 Mintaka, Grafana, the `aura-monitor` analytics service and the AURA dashboard in WireCloud. Robot and module data
-arrives as ROS 2 topics (contract in `fiware/docs/DATA_MODEL.md`). See [fiware/README.md](fiware/README.md).
+arrives as ROS 2 topics (contract in `fiware/docs/DATA_MODEL.md`; robot connection over DDS in
+[fiware/docs/DDS_INTEGRATION.md](fiware/docs/DDS_INTEGRATION.md)). See [fiware/README.md](fiware/README.md).
 
 ## Microphone speech-to-text (ROS2)
 
@@ -274,8 +323,7 @@ nothing executes unconfirmed (precision 1.0 at >= 0.72); 64 ms p50 / 120 ms p95 
 `src/aura_tts` is the robot's voice. It speaks the confirmation questions and acknowledgements
 that `aura_intent` publishes on `/aura/speaker/say`, on the edge CPU, through the default (or a
 named) audio output. The model is **Supertonic 3 int8** on the sherpa-onnx runtime, chosen in an
-A/B against Piper and Kokoro-82M for intelligibility in plant noise, latency and licensing
-([docs/design/tts-model-selection.md](docs/design/tts-model-selection.md)). It is bundled in
+A/B against Piper and Kokoro-82M for intelligibility in plant noise, latency and licensing. It is bundled in
 `src/aura_tts/model/supertonic-3-int8` (139 MB; MIT code, OpenRAIL-M weights), stored with Git
 LFS (`git lfs install && git lfs pull` after cloning), and installed into the package share by colcon.
 
@@ -292,7 +340,7 @@ aura_intent -> /aura/speaker/say -> aura_tts: normalise -> cache / Supertonic 3 
 - **Text normalisation:** equipment tags are spelled letter by letter and digit by digit
   (`V-104` → "vee one zero four"), and units, numbers and times are written out (`84 °C`,
   `20 %LEL`, `14:30`). Without it every model misread tags; with it, both STT models hear 95 % of
-  tag and value tokens correctly instead of 60 % (`docs/design/tts_ab/normalize_check.txt`).
+  tag and value tokens correctly instead of 60 %.
 
 | Topic | Type | Direction |
 | --- | --- | --- |
@@ -325,8 +373,7 @@ stable message, `aura_interfaces/msg/GestureIntent`. A camera node publishes
 JPEG frames; the gesture node runs the bundled HaGRIDv2 YOLOv10n detector
 (`src/aura_gesture/model/gesture/YOLOv10n_gestures.onnx`, 9.3 MB) with ONNX
 Runtime and turns per-frame predictions into operator intents through a
-confidence-aware k-of-n gate. The model was selected by the A/B study in
-[docs/design/gesture-model-selection.md](docs/design/gesture-model-selection.md).
+confidence-aware k-of-n gate. The model was selected in an A/B study of candidate detectors.
 
 | Gesture (proposal) | Canonical | Default intent |
 | --- | --- | --- |
