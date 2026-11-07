@@ -1,0 +1,134 @@
+{
+  "dds": {
+    "ddsmodule": {
+      "dds": {
+        "domain": 1,
+        "allowlist": [
+          {
+            "name": "rt/battery_state"
+          },
+          {
+            "name": "rt/odom"
+          },
+          {
+            "name": "rt/imu/data"
+          },
+          {
+            "name": "rt/artaban/status"
+          },
+          {
+            "name": "rt/artaban/environment"
+          },
+          {
+            "name": "rt/aura_partial_transcript"
+          },
+          {
+            "name": "rt/aura_transcript"
+          },
+          {
+            "name": "rt/aura/gesture/intent"
+          },
+          {
+            "name": "rt/aura/intent/event"
+          },
+          {
+            "name": "rt/aura/speaker/say"
+          },
+          {
+            "name": "rt/aura/stt/status"
+          },
+          {
+            "name": "rt/aura/intent/status"
+          },
+          {
+            "name": "rt/aura/gesture/status"
+          },
+          {
+            "name": "rt/aura/speaker/status"
+          }
+        ]
+      },
+      "topics": {
+        "name": "*",
+        "qos": {
+          "durability": "VOLATILE",
+          "history-depth": 1
+        }
+      }
+    },
+    "ngsild": {
+      "topics": {
+        "rt/battery_state": {
+          "entityType": "Robot",
+          "entityId": "urn:ngsi-ld:Robot:artaban-01",
+          "attribute": "battery"
+        },
+        "rt/odom": {
+          "entityType": "Robot",
+          "entityId": "urn:ngsi-ld:Robot:artaban-01",
+          "attribute": "odometry"
+        },
+        "rt/imu/data": {
+          "entityType": "Robot",
+          "entityId": "urn:ngsi-ld:Robot:artaban-01",
+          "attribute": "imu"
+        },
+        "rt/artaban/status": {
+          "entityType": "Robot",
+          "entityId": "urn:ngsi-ld:Robot:artaban-01",
+          "attribute": "status"
+        },
+        "rt/artaban/environment": {
+          "entityType": "AirQualityObserved",
+          "entityId": "urn:ngsi-ld:AirQualityObserved:artaban-01",
+          "attribute": "reading"
+        },
+        "rt/aura_partial_transcript": {
+          "entityType": "HRIEvent",
+          "entityId": "urn:ngsi-ld:HRIEvent:stt",
+          "attribute": "partialTranscript"
+        },
+        "rt/aura_transcript": {
+          "entityType": "HRIEvent",
+          "entityId": "urn:ngsi-ld:HRIEvent:stt",
+          "attribute": "transcript"
+        },
+        "rt/aura/gesture/intent": {
+          "entityType": "HRIEvent",
+          "entityId": "urn:ngsi-ld:HRIEvent:gesture",
+          "attribute": "gestureIntent"
+        },
+        "rt/aura/intent/event": {
+          "entityType": "HRIEvent",
+          "entityId": "urn:ngsi-ld:HRIEvent:intent",
+          "attribute": "intentEvent"
+        },
+        "rt/aura/speaker/say": {
+          "entityType": "HRIEvent",
+          "entityId": "urn:ngsi-ld:HRIEvent:speaker",
+          "attribute": "say"
+        },
+        "rt/aura/stt/status": {
+          "entityType": "HRIModuleStatus",
+          "entityId": "urn:ngsi-ld:HRIModuleStatus:stt",
+          "attribute": "status"
+        },
+        "rt/aura/intent/status": {
+          "entityType": "HRIModuleStatus",
+          "entityId": "urn:ngsi-ld:HRIModuleStatus:intent",
+          "attribute": "status"
+        },
+        "rt/aura/gesture/status": {
+          "entityType": "HRIModuleStatus",
+          "entityId": "urn:ngsi-ld:HRIModuleStatus:gesture",
+          "attribute": "status"
+        },
+        "rt/aura/speaker/status": {
+          "entityType": "HRIModuleStatus",
+          "entityId": "urn:ngsi-ld:HRIModuleStatus:speaker",
+          "attribute": "status"
+        }
+      }
+    }
+  }
+}
