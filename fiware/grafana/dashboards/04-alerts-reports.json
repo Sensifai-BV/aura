@@ -1,0 +1,1302 @@
+{
+  "uid": "aura-alerts",
+  "title": "AURA · Alerts & reports",
+  "description": "Automated events, alerts and mission reports (ARISE Powered-by-FIWARE condition monitoring).",
+  "tags": [
+    "aura",
+    "arise",
+    "fiware",
+    "alerts"
+  ],
+  "timezone": "browser",
+  "editable": false,
+  "graphTooltip": 1,
+  "liveNow": false,
+  "refresh": "10s",
+  "schemaVersion": 39,
+  "version": 1,
+  "style": "dark",
+  "time": {
+    "from": "now-7d",
+    "to": "now"
+  },
+  "timepicker": {
+    "refresh_intervals": [
+      "5s",
+      "10s",
+      "30s",
+      "1m",
+      "5m",
+      "15m"
+    ]
+  },
+  "fiscalYearStartMonth": 0,
+  "links": [
+    {
+      "title": "AURA dashboards",
+      "type": "dashboards",
+      "tags": [
+        "aura"
+      ],
+      "asDropdown": false,
+      "includeVars": true,
+      "keepTime": true,
+      "icon": "external link",
+      "targetBlank": false
+    },
+    {
+      "title": "AURA dashboard (WireCloud)",
+      "type": "link",
+      "url": "http://localhost:8000/admin/aura",
+      "icon": "external link",
+      "targetBlank": true,
+      "tooltip": "AURA HRI condition-monitoring widgets in FIWARE WireCloud"
+    },
+    {
+      "title": "Orion-LD",
+      "type": "link",
+      "url": "http://localhost:1026/ngsi-ld/v1/entities?local=true&limit=100",
+      "icon": "info",
+      "targetBlank": true,
+      "tooltip": "NGSI-LD entities in the context broker"
+    }
+  ],
+  "templating": {
+    "list": [
+      {
+        "name": "robot",
+        "label": "Robot",
+        "type": "custom",
+        "query": "artaban-01",
+        "current": {
+          "selected": true,
+          "text": "artaban-01",
+          "value": "artaban-01"
+        },
+        "options": [
+          {
+            "selected": true,
+            "text": "artaban-01",
+            "value": "artaban-01"
+          }
+        ],
+        "hide": 0,
+        "includeAll": false,
+        "multi": false,
+        "description": "Robot id suffix used in NGSI-LD entity ids (urn:ngsi-ld:Robot:<robot>)"
+      }
+    ]
+  },
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "text",
+      "title": "",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 3
+      },
+      "options": {
+        "mode": "markdown",
+        "content": "### Artaban · AURA — Alerts & mission reports\n`ROS 2 / Vulcanexus` → `Orion-LD (NGSI-LD, DDS bridge)` → `TROE · TimescaleDB` → `Mintaka` → **Grafana** &nbsp;·&nbsp; Powered by FIWARE · ARISE all-in-one middleware &nbsp;·&nbsp; [Open AURA dashboard (WireCloud) ↗](http://localhost:8000/admin/aura)"
+      },
+      "transparent": true
+    },
+    {
+      "id": 2,
+      "type": "row",
+      "title": "Alert overview (Alert entities, FIWARE smart data model)",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 3,
+        "w": 24,
+        "h": 1
+      },
+      "panels": []
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Open",
+      "description": "",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "aura-timescale"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 4,
+        "w": 4,
+        "h": 4
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "aura-timescale"
+          },
+          "refId": "A",
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "WITH a AS (\n  SELECT DISTINCT ON (entityid, id) entityid, split_part(id, '/', -1) AS attr, number, text, ts\n  FROM attributes\n  WHERE entityid LIKE 'urn:ngsi-ld:Alert:%'\n  ORDER BY entityid, id, ts DESC\n), f AS (\n  SELECT entityid, min(ts) AS issued, max(ts) AS updated FROM attributes\n  WHERE entityid LIKE 'urn:ngsi-ld:Alert:%' GROUP BY entityid\n), alerts AS (\n  SELECT a.entityid, f.issued, f.updated,\n    max(text) FILTER (WHERE attr = 'severity') AS severity,\n    max(text) FILTER (WHERE attr = 'status') AS status,\n    max(text) FILTER (WHERE attr = 'category') AS category,\n    max(text) FILTER (WHERE attr = 'subCategory') AS rule,\n    max(text) FILTER (WHERE attr = 'description') AS description,\n    max(text) FILTER (WHERE attr = 'missionId') AS mission,\n    max(number) FILTER (WHERE attr = 'value') AS value,\n    max(number) FILTER (WHERE attr = 'threshold') AS threshold\n  FROM a JOIN f USING (entityid) GROUP BY a.entityid, f.issued, f.updated\n)\nSELECT count(*) FILTER (WHERE status <> 'resolved') AS \"Open\",\n  count(*) FILTER (WHERE status <> 'resolved' AND severity = 'critical') AS \"Critical\",\n  count(*) FILTER (WHERE status <> 'resolved' AND severity = 'high') AS \"High\",\n  count(*) FILTER (WHERE status <> 'resolved' AND severity = 'medium') AS \"Medium\",\n  count(*) FILTER (WHERE status <> 'resolved' AND severity IN ('low','informational')) AS \"Low / info\",\n  count(*) FILTER (WHERE $__timeFilter(issued)) AS \"Raised in range\"\nFROM alerts"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#22c55e",
+                "value": null
+              },
+              {
+                "color": "#60a5fa",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/^Open$/",
+          "values": false
+        },
+        "colorMode": "background_solid",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value",
+        "orientation": "auto",
+        "wideLayout": true,
+        "showPercentChange": false
+      }
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Critical",
+      "description": "",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "aura-timescale"
+      },
+      "gridPos": {
+        "x": 4,
+        "y": 4,
+        "w": 4,
+        "h": 4
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "aura-timescale"
+          },
+          "refId": "A",
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "WITH a AS (\n  SELECT DISTINCT ON (entityid, id) entityid, split_part(id, '/', -1) AS attr, number, text, ts\n  FROM attributes\n  WHERE entityid LIKE 'urn:ngsi-ld:Alert:%'\n  ORDER BY entityid, id, ts DESC\n), f AS (\n  SELECT entityid, min(ts) AS issued, max(ts) AS updated FROM attributes\n  WHERE entityid LIKE 'urn:ngsi-ld:Alert:%' GROUP BY entityid\n), alerts AS (\n  SELECT a.entityid, f.issued, f.updated,\n    max(text) FILTER (WHERE attr = 'severity') AS severity,\n    max(text) FILTER (WHERE attr = 'status') AS status,\n    max(text) FILTER (WHERE attr = 'category') AS category,\n    max(text) FILTER (WHERE attr = 'subCategory') AS rule,\n    max(text) FILTER (WHERE attr = 'description') AS description,\n    max(text) FILTER (WHERE attr = 'missionId') AS mission,\n    max(number) FILTER (WHERE attr = 'value') AS value,\n    max(number) FILTER (WHERE attr = 'threshold') AS threshold\n  FROM a JOIN f USING (entityid) GROUP BY a.entityid, f.issued, f.updated\n)\nSELECT count(*) FILTER (WHERE status <> 'resolved') AS \"Open\",\n  count(*) FILTER (WHERE status <> 'resolved' AND severity = 'critical') AS \"Critical\",\n  count(*) FILTER (WHERE status <> 'resolved' AND severity = 'high') AS \"High\",\n  count(*) FILTER (WHERE status <> 'resolved' AND severity = 'medium') AS \"Medium\",\n  count(*) FILTER (WHERE status <> 'resolved' AND severity IN ('low','informational')) AS \"Low / info\",\n  count(*) FILTER (WHERE $__timeFilter(issued)) AS \"Raised in range\"\nFROM alerts"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#22c55e",
+                "value": null
+              },
+              {
+                "color": "#ef4444",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/^Critical$/",
+          "values": false
+        },
+        "colorMode": "background_solid",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value",
+        "orientation": "auto",
+        "wideLayout": true,
+        "showPercentChange": false
+      }
+    },
+    {
+      "id": 5,
+      "type": "stat",
+      "title": "High",
+      "description": "",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "aura-timescale"
+      },
+      "gridPos": {
+        "x": 8,
+        "y": 4,
+        "w": 4,
+        "h": 4
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "aura-timescale"
+          },
+          "refId": "A",
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "WITH a AS (\n  SELECT DISTINCT ON (entityid, id) entityid, split_part(id, '/', -1) AS attr, number, text, ts\n  FROM attributes\n  WHERE entityid LIKE 'urn:ngsi-ld:Alert:%'\n  ORDER BY entityid, id, ts DESC\n), f AS (\n  SELECT entityid, min(ts) AS issued, max(ts) AS updated FROM attributes\n  WHERE entityid LIKE 'urn:ngsi-ld:Alert:%' GROUP BY entityid\n), alerts AS (\n  SELECT a.entityid, f.issued, f.updated,\n    max(text) FILTER (WHERE attr = 'severity') AS severity,\n    max(text) FILTER (WHERE attr = 'status') AS status,\n    max(text) FILTER (WHERE attr = 'category') AS category,\n    max(text) FILTER (WHERE attr = 'subCategory') AS rule,\n    max(text) FILTER (WHERE attr = 'description') AS description,\n    max(text) FILTER (WHERE attr = 'missionId') AS mission,\n    max(number) FILTER (WHERE attr = 'value') AS value,\n    max(number) FILTER (WHERE attr = 'threshold') AS threshold\n  FROM a JOIN f USING (entityid) GROUP BY a.entityid, f.issued, f.updated\n)\nSELECT count(*) FILTER (WHERE status <> 'resolved') AS \"Open\",\n  count(*) FILTER (WHERE status <> 'resolved' AND severity = 'critical') AS \"Critical\",\n  count(*) FILTER (WHERE status <> 'resolved' AND severity = 'high') AS \"High\",\n  count(*) FILTER (WHERE status <> 'resolved' AND severity = 'medium') AS \"Medium\",\n  count(*) FILTER (WHERE status <> 'resolved' AND severity IN ('low','informational')) AS \"Low / info\",\n  count(*) FILTER (WHERE $__timeFilter(issued)) AS \"Raised in range\"\nFROM alerts"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#22c55e",
+                "value": null
+              },
+              {
+                "color": "#fb923c",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/^High$/",
+          "values": false
+        },
+        "colorMode": "background_solid",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value",
+        "orientation": "auto",
+        "wideLayout": true,
+        "showPercentChange": false
+      }
+    },
+    {
+      "id": 6,
+      "type": "stat",
+      "title": "Medium",
+      "description": "",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "aura-timescale"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 4,
+        "w": 4,
+        "h": 4
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "aura-timescale"
+          },
+          "refId": "A",
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "WITH a AS (\n  SELECT DISTINCT ON (entityid, id) entityid, split_part(id, '/', -1) AS attr, number, text, ts\n  FROM attributes\n  WHERE entityid LIKE 'urn:ngsi-ld:Alert:%'\n  ORDER BY entityid, id, ts DESC\n), f AS (\n  SELECT entityid, min(ts) AS issued, max(ts) AS updated FROM attributes\n  WHERE entityid LIKE 'urn:ngsi-ld:Alert:%' GROUP BY entityid\n), alerts AS (\n  SELECT a.entityid, f.issued, f.updated,\n    max(text) FILTER (WHERE attr = 'severity') AS severity,\n    max(text) FILTER (WHERE attr = 'status') AS status,\n    max(text) FILTER (WHERE attr = 'category') AS category,\n    max(text) FILTER (WHERE attr = 'subCategory') AS rule,\n    max(text) FILTER (WHERE attr = 'description') AS description,\n    max(text) FILTER (WHERE attr = 'missionId') AS mission,\n    max(number) FILTER (WHERE attr = 'value') AS value,\n    max(number) FILTER (WHERE attr = 'threshold') AS threshold\n  FROM a JOIN f USING (entityid) GROUP BY a.entityid, f.issued, f.updated\n)\nSELECT count(*) FILTER (WHERE status <> 'resolved') AS \"Open\",\n  count(*) FILTER (WHERE status <> 'resolved' AND severity = 'critical') AS \"Critical\",\n  count(*) FILTER (WHERE status <> 'resolved' AND severity = 'high') AS \"High\",\n  count(*) FILTER (WHERE status <> 'resolved' AND severity = 'medium') AS \"Medium\",\n  count(*) FILTER (WHERE status <> 'resolved' AND severity IN ('low','informational')) AS \"Low / info\",\n  count(*) FILTER (WHERE $__timeFilter(issued)) AS \"Raised in range\"\nFROM alerts"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#22c55e",
+                "value": null
+              },
+              {
+                "color": "#f59e0b",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/^Medium$/",
+          "values": false
+        },
+        "colorMode": "background_solid",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value",
+        "orientation": "auto",
+        "wideLayout": true,
+        "showPercentChange": false
+      }
+    },
+    {
+      "id": 7,
+      "type": "stat",
+      "title": "Low / info",
+      "description": "",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "aura-timescale"
+      },
+      "gridPos": {
+        "x": 16,
+        "y": 4,
+        "w": 4,
+        "h": 4
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "aura-timescale"
+          },
+          "refId": "A",
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "WITH a AS (\n  SELECT DISTINCT ON (entityid, id) entityid, split_part(id, '/', -1) AS attr, number, text, ts\n  FROM attributes\n  WHERE entityid LIKE 'urn:ngsi-ld:Alert:%'\n  ORDER BY entityid, id, ts DESC\n), f AS (\n  SELECT entityid, min(ts) AS issued, max(ts) AS updated FROM attributes\n  WHERE entityid LIKE 'urn:ngsi-ld:Alert:%' GROUP BY entityid\n), alerts AS (\n  SELECT a.entityid, f.issued, f.updated,\n    max(text) FILTER (WHERE attr = 'severity') AS severity,\n    max(text) FILTER (WHERE attr = 'status') AS status,\n    max(text) FILTER (WHERE attr = 'category') AS category,\n    max(text) FILTER (WHERE attr = 'subCategory') AS rule,\n    max(text) FILTER (WHERE attr = 'description') AS description,\n    max(text) FILTER (WHERE attr = 'missionId') AS mission,\n    max(number) FILTER (WHERE attr = 'value') AS value,\n    max(number) FILTER (WHERE attr = 'threshold') AS threshold\n  FROM a JOIN f USING (entityid) GROUP BY a.entityid, f.issued, f.updated\n)\nSELECT count(*) FILTER (WHERE status <> 'resolved') AS \"Open\",\n  count(*) FILTER (WHERE status <> 'resolved' AND severity = 'critical') AS \"Critical\",\n  count(*) FILTER (WHERE status <> 'resolved' AND severity = 'high') AS \"High\",\n  count(*) FILTER (WHERE status <> 'resolved' AND severity = 'medium') AS \"Medium\",\n  count(*) FILTER (WHERE status <> 'resolved' AND severity IN ('low','informational')) AS \"Low / info\",\n  count(*) FILTER (WHERE $__timeFilter(issued)) AS \"Raised in range\"\nFROM alerts"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#22c55e",
+                "value": null
+              },
+              {
+                "color": "#64748b",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/^Low / info$/",
+          "values": false
+        },
+        "colorMode": "background_solid",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value",
+        "orientation": "auto",
+        "wideLayout": true,
+        "showPercentChange": false
+      }
+    },
+    {
+      "id": 8,
+      "type": "stat",
+      "title": "Raised in range",
+      "description": "",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "aura-timescale"
+      },
+      "gridPos": {
+        "x": 20,
+        "y": 4,
+        "w": 4,
+        "h": 4
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "aura-timescale"
+          },
+          "refId": "A",
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "WITH a AS (\n  SELECT DISTINCT ON (entityid, id) entityid, split_part(id, '/', -1) AS attr, number, text, ts\n  FROM attributes\n  WHERE entityid LIKE 'urn:ngsi-ld:Alert:%'\n  ORDER BY entityid, id, ts DESC\n), f AS (\n  SELECT entityid, min(ts) AS issued, max(ts) AS updated FROM attributes\n  WHERE entityid LIKE 'urn:ngsi-ld:Alert:%' GROUP BY entityid\n), alerts AS (\n  SELECT a.entityid, f.issued, f.updated,\n    max(text) FILTER (WHERE attr = 'severity') AS severity,\n    max(text) FILTER (WHERE attr = 'status') AS status,\n    max(text) FILTER (WHERE attr = 'category') AS category,\n    max(text) FILTER (WHERE attr = 'subCategory') AS rule,\n    max(text) FILTER (WHERE attr = 'description') AS description,\n    max(text) FILTER (WHERE attr = 'missionId') AS mission,\n    max(number) FILTER (WHERE attr = 'value') AS value,\n    max(number) FILTER (WHERE attr = 'threshold') AS threshold\n  FROM a JOIN f USING (entityid) GROUP BY a.entityid, f.issued, f.updated\n)\nSELECT count(*) FILTER (WHERE status <> 'resolved') AS \"Open\",\n  count(*) FILTER (WHERE status <> 'resolved' AND severity = 'critical') AS \"Critical\",\n  count(*) FILTER (WHERE status <> 'resolved' AND severity = 'high') AS \"High\",\n  count(*) FILTER (WHERE status <> 'resolved' AND severity = 'medium') AS \"Medium\",\n  count(*) FILTER (WHERE status <> 'resolved' AND severity IN ('low','informational')) AS \"Low / info\",\n  count(*) FILTER (WHERE $__timeFilter(issued)) AS \"Raised in range\"\nFROM alerts"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#a78bfa",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/^Raised in range$/",
+          "values": false
+        },
+        "colorMode": "background_solid",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value",
+        "orientation": "auto",
+        "wideLayout": true,
+        "showPercentChange": false
+      }
+    },
+    {
+      "id": 9,
+      "type": "table",
+      "title": "Alerts",
+      "description": "Raised and resolved by aura-monitor (hysteresis rules on HRI, robot, environment and middleware signals).",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "aura-timescale"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 8,
+        "w": 16,
+        "h": 12
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "aura-timescale"
+          },
+          "refId": "A",
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "WITH a AS (\n  SELECT DISTINCT ON (entityid, id) entityid, split_part(id, '/', -1) AS attr, number, text, ts\n  FROM attributes\n  WHERE entityid LIKE 'urn:ngsi-ld:Alert:%'\n  ORDER BY entityid, id, ts DESC\n), f AS (\n  SELECT entityid, min(ts) AS issued, max(ts) AS updated FROM attributes\n  WHERE entityid LIKE 'urn:ngsi-ld:Alert:%' GROUP BY entityid\n), alerts AS (\n  SELECT a.entityid, f.issued, f.updated,\n    max(text) FILTER (WHERE attr = 'severity') AS severity,\n    max(text) FILTER (WHERE attr = 'status') AS status,\n    max(text) FILTER (WHERE attr = 'category') AS category,\n    max(text) FILTER (WHERE attr = 'subCategory') AS rule,\n    max(text) FILTER (WHERE attr = 'description') AS description,\n    max(text) FILTER (WHERE attr = 'missionId') AS mission,\n    max(number) FILTER (WHERE attr = 'value') AS value,\n    max(number) FILTER (WHERE attr = 'threshold') AS threshold\n  FROM a JOIN f USING (entityid) GROUP BY a.entityid, f.issued, f.updated\n)\nSELECT issued AS \"Issued\", severity AS \"Severity\", status AS \"Status\", category AS \"Category\",\n  rule AS \"Rule\", description AS \"Description\", value AS \"Value\", threshold AS \"Threshold\",\n  mission AS \"Mission\", updated AS \"Updated\"\nFROM alerts WHERE $__timeFilter(issued) OR status <> 'resolved'\nORDER BY (status = 'resolved'), issued DESC LIMIT 200"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "filterable": true
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Severity"
+            },
+            "properties": [
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "critical": {
+                        "text": "CRITICAL",
+                        "color": "#ef4444",
+                        "index": 0
+                      },
+                      "high": {
+                        "text": "HIGH",
+                        "color": "#fb923c",
+                        "index": 1
+                      },
+                      "medium": {
+                        "text": "MEDIUM",
+                        "color": "#f59e0b",
+                        "index": 2
+                      },
+                      "low": {
+                        "text": "LOW",
+                        "color": "#60a5fa",
+                        "index": 3
+                      },
+                      "informational": {
+                        "text": "INFO",
+                        "color": "#64748b",
+                        "index": 4
+                      }
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-background",
+                  "mode": "basic"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Status"
+            },
+            "properties": [
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "active": {
+                        "text": "active",
+                        "color": "#ef4444",
+                        "index": 0
+                      },
+                      "acknowledged": {
+                        "text": "acknowledged",
+                        "color": "#f59e0b",
+                        "index": 1
+                      },
+                      "resolved": {
+                        "text": "resolved",
+                        "color": "#22c55e",
+                        "index": 2
+                      }
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text",
+                  "mode": "basic"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Issued"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 150
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Updated"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 150
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Description"
+            },
+            "properties": [
+              {
+                "id": "custom.minWidth",
+                "value": 260
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Value"
+            },
+            "properties": [
+              {
+                "id": "decimals",
+                "value": 2
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Threshold"
+            },
+            "properties": [
+              {
+                "id": "decimals",
+                "value": 2
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false
+        }
+      }
+    },
+    {
+      "id": 10,
+      "type": "alertlist",
+      "title": "Grafana alert rules (unified alerting)",
+      "description": "Grafana-managed rules provisioned from grafana/provisioning/alerting/rules.yaml",
+      "gridPos": {
+        "x": 16,
+        "y": 8,
+        "w": 8,
+        "h": 12
+      },
+      "options": {
+        "viewMode": "list",
+        "groupMode": "default",
+        "groupBy": [],
+        "maxItems": 20,
+        "sortOrder": 1,
+        "dashboardAlerts": false,
+        "alertName": "",
+        "alertInstanceLabelFilter": "",
+        "folder": null,
+        "stateFilter": {
+          "firing": true,
+          "pending": true,
+          "noData": false,
+          "normal": true,
+          "error": true,
+          "recovering": true
+        },
+        "showInstances": false
+      }
+    },
+    {
+      "id": 11,
+      "type": "state-timeline",
+      "title": "Alert timeline by rule",
+      "description": "",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "aura-timescale"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 20,
+        "w": 24,
+        "h": 7
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "aura-timescale"
+          },
+          "refId": "A",
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "WITH s AS (\n  SELECT entityid, ts, text AS status FROM attributes\n  WHERE entityid LIKE 'urn:ngsi-ld:Alert:%' AND id LIKE '%/status' AND $__timeFilter(ts)\n), r AS (\n  SELECT DISTINCT ON (entityid) entityid, text AS rule FROM attributes\n  WHERE entityid LIKE 'urn:ngsi-ld:Alert:%' AND id LIKE '%/subCategory' ORDER BY entityid, ts DESC\n)\nSELECT s.ts AS \"time\", r.rule AS metric, s.status AS value\nFROM s JOIN r USING (entityid) ORDER BY 1"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#64748b",
+                "value": null
+              }
+            ]
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "active": {
+                  "text": "active",
+                  "color": "#ef4444",
+                  "index": 0
+                },
+                "acknowledged": {
+                  "text": "acknowledged",
+                  "color": "#f59e0b",
+                  "index": 1
+                },
+                "resolved": {
+                  "text": "resolved",
+                  "color": "#22c55e",
+                  "index": 2
+                }
+              }
+            }
+          ],
+          "custom": {
+            "fillOpacity": 85,
+            "lineWidth": 0
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "mergeValues": true,
+        "showValue": "auto",
+        "alignValue": "left",
+        "rowHeight": 0.8,
+        "legend": {
+          "showLegend": true,
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      },
+      "transformations": [
+        {
+          "id": "prepareTimeSeries",
+          "options": {
+            "format": "multi"
+          }
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "type": "row",
+      "title": "Mission reports (MissionReport entities)",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 27,
+        "w": 24,
+        "h": 1
+      },
+      "panels": []
+    },
+    {
+      "id": 13,
+      "type": "table",
+      "title": "Mission reports",
+      "description": "Automated per-mission evidence package. Click a mission to open its printable report (aura-monitor).",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "aura-timescale"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 28,
+        "w": 24,
+        "h": 12
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "aura-timescale"
+          },
+          "refId": "A",
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "WITH r AS (\n  SELECT DISTINCT ON (entityid, id) entityid, split_part(id, '/', -1) AS attr, number, text, boolean,\n         coalesce(observedat, ts) AS t\n  FROM attributes\n  WHERE entityid LIKE 'urn:ngsi-ld:MissionReport:%'\n  ORDER BY entityid, id, ts DESC\n)\nSELECT split_part(entityid, ':', 4) AS \"Mission\", max(t) AS \"Ended\",\n  max(text) FILTER (WHERE attr = 'verdict') AS \"Verdict\", max(text) FILTER (WHERE attr = 'operator') AS \"Operator\", max(text) FILTER (WHERE attr = 'condition') AS \"Condition\",\n  max(number) FILTER (WHERE attr = 'durationMin') AS \"Duration\", max(number) FILTER (WHERE attr = 'commandCount') AS \"Commands\",\n  max(number) FILTER (WHERE attr = 'commandSuccessRate') AS \"Success\", max(number) FILTER (WHERE attr = 'falseActivationRate') AS \"False act.\",\n  max(number) FILTER (WHERE attr = 'rejectionRate') AS \"Rejection\", max(number) FILTER (WHERE attr = 'confirmationLoopRate') AS \"Loops / 10\",\n  max(number) FILTER (WHERE attr = 'meanLatency') AS \"Latency\", max(number) FILTER (WHERE attr = 'timeToSafeStop') AS \"Safe-stop\",\n  max(number) FILTER (WHERE attr = 'alertsCount') AS \"Alerts\", max(number) FILTER (WHERE attr = 'distance') AS \"Distance\", max(number) FILTER (WHERE attr = 'batteryUsed') AS \"Battery used\"\nFROM r WHERE entityid IN (SELECT entityid FROM r GROUP BY entityid HAVING max(t) >= $__timeFrom())\nGROUP BY entityid ORDER BY 2 DESC"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "filterable": true
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Verdict"
+            },
+            "properties": [
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "pass": {
+                        "text": "PASS",
+                        "color": "#22c55e",
+                        "index": 0
+                      },
+                      "watch": {
+                        "text": "WATCH",
+                        "color": "#f59e0b",
+                        "index": 1
+                      },
+                      "fail": {
+                        "text": "FAIL",
+                        "color": "#ef4444",
+                        "index": 2
+                      }
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-background",
+                  "mode": "basic"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Condition"
+            },
+            "properties": [
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "clean": {
+                        "text": "clean",
+                        "color": "#22c55e",
+                        "index": 0
+                      },
+                      "noise": {
+                        "text": "noise > 75 dB",
+                        "color": "#f59e0b",
+                        "index": 1
+                      },
+                      "mask": {
+                        "text": "full-face mask",
+                        "color": "#fb923c",
+                        "index": 2
+                      },
+                      "noise+mask": {
+                        "text": "noise + mask",
+                        "color": "#ef4444",
+                        "index": 3
+                      }
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text",
+                  "mode": "basic"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Mission"
+            },
+            "properties": [
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "Open mission report",
+                    "targetBlank": true,
+                    "url": "http://localhost:8090/reports/${__value.raw}"
+                  }
+                ]
+              },
+              {
+                "id": "custom.width",
+                "value": 90
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Ended"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 150
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Duration"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "m"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Success"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percent"
+              },
+              {
+                "id": "min",
+                "value": 0
+              },
+              {
+                "id": "max",
+                "value": 100
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "#ef4444",
+                      "value": null
+                    },
+                    {
+                      "color": "#f59e0b",
+                      "value": 80
+                    },
+                    {
+                      "color": "#22c55e",
+                      "value": 90
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "gauge",
+                  "mode": "lcd",
+                  "valueDisplayMode": "text"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "False act."
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percent"
+              },
+              {
+                "id": "decimals",
+                "value": 1
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "#22c55e",
+                      "value": null
+                    },
+                    {
+                      "color": "#f59e0b",
+                      "value": 3
+                    },
+                    {
+                      "color": "#ef4444",
+                      "value": 5
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Rejection"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percent"
+              },
+              {
+                "id": "decimals",
+                "value": 1
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "#22c55e",
+                      "value": null
+                    },
+                    {
+                      "color": "#f59e0b",
+                      "value": 7
+                    },
+                    {
+                      "color": "#ef4444",
+                      "value": 10
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Loops / 10"
+            },
+            "properties": [
+              {
+                "id": "decimals",
+                "value": 2
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "#22c55e",
+                      "value": null
+                    },
+                    {
+                      "color": "#f59e0b",
+                      "value": 1.5
+                    },
+                    {
+                      "color": "#ef4444",
+                      "value": 2.0
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Latency"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "ms"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "#22c55e",
+                      "value": null
+                    },
+                    {
+                      "color": "#f59e0b",
+                      "value": 450
+                    },
+                    {
+                      "color": "#ef4444",
+                      "value": 600
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Safe-stop"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "ms"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Distance"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "lengthm"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Battery used"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percent"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false
+        },
+        "sortBy": [
+          {
+            "displayName": "Ended",
+            "desc": true
+          }
+        ]
+      }
+    }
+  ]
+}

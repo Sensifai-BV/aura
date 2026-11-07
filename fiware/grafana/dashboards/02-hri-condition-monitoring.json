@@ -1,0 +1,2738 @@
+{
+  "uid": "aura-hri",
+  "title": "AURA · HRI condition monitoring",
+  "description": "Real-time KPIs of the AURA intent skill on Artaban (ARISE CH5): ROS 2 HRI topics via the Orion-LD DDS bridge, KPIs computed by aura-monitor.",
+  "tags": [
+    "aura",
+    "arise",
+    "fiware",
+    "hri"
+  ],
+  "timezone": "browser",
+  "editable": false,
+  "graphTooltip": 1,
+  "liveNow": false,
+  "refresh": "5s",
+  "schemaVersion": 39,
+  "version": 1,
+  "style": "dark",
+  "time": {
+    "from": "now-30m",
+    "to": "now"
+  },
+  "timepicker": {
+    "refresh_intervals": [
+      "5s",
+      "10s",
+      "30s",
+      "1m",
+      "5m",
+      "15m"
+    ]
+  },
+  "fiscalYearStartMonth": 0,
+  "links": [
+    {
+      "title": "AURA dashboards",
+      "type": "dashboards",
+      "tags": [
+        "aura"
+      ],
+      "asDropdown": false,
+      "includeVars": true,
+      "keepTime": true,
+      "icon": "external link",
+      "targetBlank": false
+    },
+    {
+      "title": "AURA dashboard (WireCloud)",
+      "type": "link",
+      "url": "http://localhost:8000/admin/aura",
+      "icon": "external link",
+      "targetBlank": true,
+      "tooltip": "AURA HRI condition-monitoring widgets in FIWARE WireCloud"
+    },
+    {
+      "title": "Orion-LD",
+      "type": "link",
+      "url": "http://localhost:1026/ngsi-ld/v1/entities?local=true&limit=100",
+      "icon": "info",
+      "targetBlank": true,
+      "tooltip": "NGSI-LD entities in the context broker"
+    }
+  ],
+  "templating": {
+    "list": [
+      {
+        "name": "robot",
+        "label": "Robot",
+        "type": "custom",
+        "query": "artaban-01",
+        "current": {
+          "selected": true,
+          "text": "artaban-01",
+          "value": "artaban-01"
+        },
+        "options": [
+          {
+            "selected": true,
+            "text": "artaban-01",
+            "value": "artaban-01"
+          }
+        ],
+        "hide": 0,
+        "includeAll": false,
+        "multi": false,
+        "description": "Robot id suffix used in NGSI-LD entity ids (urn:ngsi-ld:Robot:<robot>)"
+      }
+    ]
+  },
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "text",
+      "title": "",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 3
+      },
+      "options": {
+        "mode": "markdown",
+        "content": "### Artaban · AURA — HRI condition monitoring\n`ROS 2 / Vulcanexus` → `Orion-LD (NGSI-LD, DDS bridge)` → `TROE · TimescaleDB` → `Mintaka` → **Grafana** &nbsp;·&nbsp; Powered by FIWARE · ARISE all-in-one middleware &nbsp;·&nbsp; [Open AURA dashboard (WireCloud) ↗](http://localhost:8000/admin/aura)"
+      },
+      "transparent": true
+    },
+    {
+      "id": 2,
+      "type": "row",
+      "title": "Session KPIs (latest HRISession computed by aura-monitor)",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 3,
+        "w": 24,
+        "h": 1
+      },
+      "panels": []
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Command success",
+      "description": "",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "aura-timescale"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 4,
+        "w": 4,
+        "h": 4
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "aura-timescale"
+          },
+          "refId": "A",
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT number AS \"Command success\"\nFROM attributes\nWHERE entityid LIKE 'urn:ngsi-ld:HRISession:%' AND id LIKE '%/commandSuccessRate'\nORDER BY ts DESC LIMIT 1"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "decimals": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#ef4444",
+                "value": null
+              },
+              {
+                "color": "#f59e0b",
+                "value": 80
+              },
+              {
+                "color": "#22c55e",
+                "value": 90
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background_solid",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value",
+        "orientation": "auto",
+        "wideLayout": true,
+        "showPercentChange": false
+      }
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "False activations",
+      "description": "",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "aura-timescale"
+      },
+      "gridPos": {
+        "x": 4,
+        "y": 4,
+        "w": 4,
+        "h": 4
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "aura-timescale"
+          },
+          "refId": "A",
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT number AS \"False activations\"\nFROM attributes\nWHERE entityid LIKE 'urn:ngsi-ld:HRISession:%' AND id LIKE '%/falseActivationRate'\nORDER BY ts DESC LIMIT 1"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "decimals": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#22c55e",
+                "value": null
+              },
+              {
+                "color": "#f59e0b",
+                "value": 3
+              },
+              {
+                "color": "#ef4444",
+                "value": 5
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background_solid",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value",
+        "orientation": "auto",
+        "wideLayout": true,
+        "showPercentChange": false
+      }
+    },
+    {
+      "id": 5,
+      "type": "stat",
+      "title": "Rejection (5 min)",
+      "description": "",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "aura-timescale"
+      },
+      "gridPos": {
+        "x": 8,
+        "y": 4,
+        "w": 4,
+        "h": 4
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "aura-timescale"
+          },
+          "refId": "A",
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT number AS \"Rejection (5 min)\"\nFROM attributes\nWHERE entityid LIKE 'urn:ngsi-ld:HRISession:%' AND id LIKE '%/windowRejectionRate'\nORDER BY ts DESC LIMIT 1"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "decimals": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#22c55e",
+                "value": null
+              },
+              {
+                "color": "#f59e0b",
+                "value": 7
+              },
+              {
+                "color": "#ef4444",
+                "value": 10
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background_solid",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value",
+        "orientation": "auto",
+        "wideLayout": true,
+        "showPercentChange": false
+      }
+    },
+    {
+      "id": 6,
+      "type": "stat",
+      "title": "Confirm loops / 10",
+      "description": "",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "aura-timescale"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 4,
+        "w": 4,
+        "h": 4
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "aura-timescale"
+          },
+          "refId": "A",
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT number AS \"Confirm loops / 10\"\nFROM attributes\nWHERE entityid LIKE 'urn:ngsi-ld:HRISession:%' AND id LIKE '%/confirmationLoopRate'\nORDER BY ts DESC LIMIT 1"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "decimals": 2,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#22c55e",
+                "value": null
+              },
+              {
+                "color": "#f59e0b",
+                "value": 1.5
+              },
+              {
+                "color": "#ef4444",
+                "value": 2.0
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background_solid",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value",
+        "orientation": "auto",
+        "wideLayout": true,
+        "showPercentChange": false
+      }
+    },
+    {
+      "id": 7,
+      "type": "stat",
+      "title": "p95 latency",
+      "description": "",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "aura-timescale"
+      },
+      "gridPos": {
+        "x": 16,
+        "y": 4,
+        "w": 4,
+        "h": 4
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "aura-timescale"
+          },
+          "refId": "A",
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT number AS \"p95 latency\"\nFROM attributes\nWHERE entityid LIKE 'urn:ngsi-ld:HRISession:%' AND id LIKE '%/p95Latency'\nORDER BY ts DESC LIMIT 1"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "decimals": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#22c55e",
+                "value": null
+              },
+              {
+                "color": "#f59e0b",
+                "value": 450
+              },
+              {
+                "color": "#ef4444",
+                "value": 600
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background_solid",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value",
+        "orientation": "auto",
+        "wideLayout": true,
+        "showPercentChange": false
+      }
+    },
+    {
+      "id": 8,
+      "type": "stat",
+      "title": "Mean confidence",
+      "description": "",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "aura-timescale"
+      },
+      "gridPos": {
+        "x": 20,
+        "y": 4,
+        "w": 4,
+        "h": 4
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "aura-timescale"
+          },
+          "refId": "A",
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT number AS \"Mean confidence\"\nFROM attributes\nWHERE entityid LIKE 'urn:ngsi-ld:HRISession:%' AND id LIKE '%/meanConfidence'\nORDER BY ts DESC LIMIT 1"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "decimals": 2,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#ef4444",
+                "value": null
+              },
+              {
+                "color": "#f59e0b",
+                "value": 0.7
+              },
+              {
+                "color": "#22c55e",
+                "value": 0.8
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background_solid",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value",
+        "orientation": "auto",
+        "wideLayout": true,
+        "showPercentChange": false
+      }
+    },
+    {
+      "id": 9,
+      "type": "stat",
+      "title": "Commands",
+      "description": "",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "aura-timescale"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 8,
+        "w": 4,
+        "h": 3
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "aura-timescale"
+          },
+          "refId": "A",
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT number AS \"Commands\"\nFROM attributes\nWHERE entityid LIKE 'urn:ngsi-ld:HRISession:%' AND id LIKE '%/commandCount'\nORDER BY ts DESC LIMIT 1"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "decimals": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#60a5fa",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value",
+        "orientation": "auto",
+        "wideLayout": true,
+        "showPercentChange": false
+      }
+    },
+    {
+      "id": 10,
+      "type": "stat",
+      "title": "Rejection (session)",
+      "description": "",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "aura-timescale"
+      },
+      "gridPos": {
+        "x": 4,
+        "y": 8,
+        "w": 4,
+        "h": 3
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "aura-timescale"
+          },
+          "refId": "A",
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT number AS \"Rejection (session)\"\nFROM attributes\nWHERE entityid LIKE 'urn:ngsi-ld:HRISession:%' AND id LIKE '%/rejectionRate'\nORDER BY ts DESC LIMIT 1"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "decimals": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#22c55e",
+                "value": null
+              },
+              {
+                "color": "#f59e0b",
+                "value": 7
+              },
+              {
+                "color": "#ef4444",
+                "value": 10
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value",
+        "orientation": "auto",
+        "wideLayout": true,
+        "showPercentChange": false
+      }
+    },
+    {
+      "id": 11,
+      "type": "stat",
+      "title": "Mean latency",
+      "description": "",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "aura-timescale"
+      },
+      "gridPos": {
+        "x": 8,
+        "y": 8,
+        "w": 4,
+        "h": 3
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "aura-timescale"
+          },
+          "refId": "A",
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT number AS \"Mean latency\"\nFROM attributes\nWHERE entityid LIKE 'urn:ngsi-ld:HRISession:%' AND id LIKE '%/meanLatency'\nORDER BY ts DESC LIMIT 1"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "decimals": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#22c55e",
+                "value": null
+              },
+              {
+                "color": "#f59e0b",
+                "value": 450
+              },
+              {
+                "color": "#ef4444",
+                "value": 600
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value",
+        "orientation": "auto",
+        "wideLayout": true,
+        "showPercentChange": false
+      }
+    },
+    {
+      "id": 12,
+      "type": "stat",
+      "title": "Time-to-safe-stop",
+      "description": "",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "aura-timescale"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 8,
+        "w": 4,
+        "h": 3
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "aura-timescale"
+          },
+          "refId": "A",
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT number AS \"Time-to-safe-stop\"\nFROM attributes\nWHERE entityid LIKE 'urn:ngsi-ld:HRISession:%' AND id LIKE '%/timeToSafeStop'\nORDER BY ts DESC LIMIT 1"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "decimals": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#22c55e",
+                "value": null
+              },
+              {
+                "color": "#f59e0b",
+                "value": 800
+              },
+              {
+                "color": "#ef4444",
+                "value": 1200
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value",
+        "orientation": "auto",
+        "wideLayout": true,
+        "showPercentChange": false
+      }
+    },
+    {
+      "id": 13,
+      "type": "stat",
+      "title": "Operator interventions",
+      "description": "",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "aura-timescale"
+      },
+      "gridPos": {
+        "x": 16,
+        "y": 8,
+        "w": 4,
+        "h": 3
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "aura-timescale"
+          },
+          "refId": "A",
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT number AS \"Operator interventions\"\nFROM attributes\nWHERE entityid LIKE 'urn:ngsi-ld:HRISession:%' AND id LIKE '%/operatorInterventions'\nORDER BY ts DESC LIMIT 1"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "decimals": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#a78bfa",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value",
+        "orientation": "auto",
+        "wideLayout": true,
+        "showPercentChange": false
+      }
+    },
+    {
+      "id": 14,
+      "type": "stat",
+      "title": "Calibration error (ECE)",
+      "description": "",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "aura-timescale"
+      },
+      "gridPos": {
+        "x": 20,
+        "y": 8,
+        "w": 4,
+        "h": 3
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "aura-timescale"
+          },
+          "refId": "A",
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT number AS \"Calibration error (ECE)\"\nFROM attributes\nWHERE entityid LIKE 'urn:ngsi-ld:HRISession:%' AND id LIKE '%/calibrationError'\nORDER BY ts DESC LIMIT 1"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "decimals": 3,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#22c55e",
+                "value": null
+              },
+              {
+                "color": "#f59e0b",
+                "value": 0.05
+              },
+              {
+                "color": "#ef4444",
+                "value": 0.1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value",
+        "orientation": "auto",
+        "wideLayout": true,
+        "showPercentChange": false
+      }
+    },
+    {
+      "id": 15,
+      "type": "row",
+      "title": "Interaction state (HRIModuleStatus:intent · diagnostic_msgs/DiagnosticStatus)",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 11,
+        "w": 24,
+        "h": 1
+      },
+      "panels": []
+    },
+    {
+      "id": 16,
+      "type": "stat",
+      "title": "Engagement",
+      "description": "",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "aura-timescale"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 12,
+        "w": 4,
+        "h": 3
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "aura-timescale"
+          },
+          "refId": "A",
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT COALESCE((SELECT t.v FROM jsonb_array_elements_text(compound->'values') WITH ORDINALITY AS t(v, i) WHERE compound->'keys'->>(t.i::int - 1) = 'engagement'), (SELECT kv->>'value' FROM jsonb_array_elements(compound->'values') kv WHERE kv->>'key' = 'engagement')) AS \"e\"\nFROM attributes\nWHERE entityid = 'urn:ngsi-ld:HRIModuleStatus:intent' AND id LIKE '%/status'\nORDER BY ts DESC LIMIT 1"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#64748b",
+                "value": null
+              }
+            ]
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "ENGAGED": {
+                  "text": "ENGAGED",
+                  "color": "#22c55e",
+                  "index": 0
+                },
+                "ATTENDING": {
+                  "text": "ATTENDING",
+                  "color": "#f59e0b",
+                  "index": 1
+                },
+                "DISENGAGED": {
+                  "text": "DISENGAGED",
+                  "color": "#64748b",
+                  "index": 2
+                }
+              }
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/.*/",
+          "values": false
+        },
+        "colorMode": "background_solid",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value",
+        "orientation": "auto",
+        "wideLayout": true,
+        "showPercentChange": false
+      }
+    },
+    {
+      "id": 17,
+      "type": "stat",
+      "title": "Recognition mode",
+      "description": "",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "aura-timescale"
+      },
+      "gridPos": {
+        "x": 4,
+        "y": 12,
+        "w": 5,
+        "h": 3
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "aura-timescale"
+          },
+          "refId": "A",
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT COALESCE((SELECT t.v FROM jsonb_array_elements_text(compound->'values') WITH ORDINALITY AS t(v, i) WHERE compound->'keys'->>(t.i::int - 1) = 'recognition_mode'), (SELECT kv->>'value' FROM jsonb_array_elements(compound->'values') kv WHERE kv->>'key' = 'recognition_mode')) AS \"m\"\nFROM attributes\nWHERE entityid = 'urn:ngsi-ld:HRIModuleStatus:intent' AND id LIKE '%/status'\nORDER BY ts DESC LIMIT 1"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#64748b",
+                "value": null
+              }
+            ]
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "acoustic": {
+                  "text": "acoustic",
+                  "color": "#38bdf8",
+                  "index": 0
+                },
+                "acoustic+thermal": {
+                  "text": "acoustic + thermal",
+                  "color": "#2dd4bf",
+                  "index": 1
+                },
+                "fused": {
+                  "text": "fused",
+                  "color": "#a78bfa",
+                  "index": 2
+                },
+                "gesture-fallback": {
+                  "text": "gesture fallback",
+                  "color": "#f59e0b",
+                  "index": 3
+                }
+              }
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/.*/",
+          "values": false
+        },
+        "colorMode": "background_solid",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value",
+        "orientation": "auto",
+        "wideLayout": true,
+        "showPercentChange": false
+      }
+    },
+    {
+      "id": 18,
+      "type": "stat",
+      "title": "Acoustic condition",
+      "description": "",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "aura-timescale"
+      },
+      "gridPos": {
+        "x": 9,
+        "y": 12,
+        "w": 5,
+        "h": 3
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "aura-timescale"
+          },
+          "refId": "A",
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT COALESCE((SELECT t.v FROM jsonb_array_elements_text(compound->'values') WITH ORDINALITY AS t(v, i) WHERE compound->'keys'->>(t.i::int - 1) = 'acoustic_condition'), (SELECT kv->>'value' FROM jsonb_array_elements(compound->'values') kv WHERE kv->>'key' = 'acoustic_condition')) AS \"c\"\nFROM attributes\nWHERE entityid = 'urn:ngsi-ld:HRIModuleStatus:intent' AND id LIKE '%/status'\nORDER BY ts DESC LIMIT 1"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#64748b",
+                "value": null
+              }
+            ]
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "clean": {
+                  "text": "clean",
+                  "color": "#22c55e",
+                  "index": 0
+                },
+                "noise": {
+                  "text": "noise > 75 dB",
+                  "color": "#f59e0b",
+                  "index": 1
+                },
+                "mask": {
+                  "text": "full-face mask",
+                  "color": "#fb923c",
+                  "index": 2
+                },
+                "noise+mask": {
+                  "text": "noise + mask",
+                  "color": "#ef4444",
+                  "index": 3
+                }
+              }
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/.*/",
+          "values": false
+        },
+        "colorMode": "background_solid",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value",
+        "orientation": "auto",
+        "wideLayout": true,
+        "showPercentChange": false
+      }
+    },
+    {
+      "id": 19,
+      "type": "stat",
+      "title": "Acceptance threshold",
+      "description": "",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "aura-timescale"
+      },
+      "gridPos": {
+        "x": 14,
+        "y": 12,
+        "w": 3,
+        "h": 3
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "aura-timescale"
+          },
+          "refId": "A",
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT COALESCE((SELECT t.v FROM jsonb_array_elements_text(compound->'values') WITH ORDINALITY AS t(v, i) WHERE compound->'keys'->>(t.i::int - 1) = 'accept_threshold'), (SELECT kv->>'value' FROM jsonb_array_elements(compound->'values') kv WHERE kv->>'key' = 'accept_threshold'))::float AS \"t\"\nFROM attributes\nWHERE entityid = 'urn:ngsi-ld:HRIModuleStatus:intent' AND id LIKE '%/status'\nORDER BY ts DESC LIMIT 1"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 2,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#38bdf8",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/.*/",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value",
+        "orientation": "auto",
+        "wideLayout": true,
+        "showPercentChange": false
+      }
+    },
+    {
+      "id": 20,
+      "type": "stat",
+      "title": "Operator",
+      "description": "",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "aura-timescale"
+      },
+      "gridPos": {
+        "x": 17,
+        "y": 12,
+        "w": 3,
+        "h": 3
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "aura-timescale"
+          },
+          "refId": "A",
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT COALESCE((SELECT t.v FROM jsonb_array_elements_text(compound->'values') WITH ORDINALITY AS t(v, i) WHERE compound->'keys'->>(t.i::int - 1) = 'operator_id'), (SELECT kv->>'value' FROM jsonb_array_elements(compound->'values') kv WHERE kv->>'key' = 'operator_id')) AS \"o\"\nFROM attributes\nWHERE entityid = 'urn:ngsi-ld:HRIModuleStatus:intent' AND id LIKE '%/status'\nORDER BY ts DESC LIMIT 1"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#a78bfa",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/.*/",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value",
+        "orientation": "auto",
+        "wideLayout": true,
+        "showPercentChange": false
+      }
+    },
+    {
+      "id": 21,
+      "type": "stat",
+      "title": "Last transcript",
+      "description": "/aura_transcript (aura_stt)",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "aura-timescale"
+      },
+      "gridPos": {
+        "x": 20,
+        "y": 12,
+        "w": 4,
+        "h": 3
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "aura-timescale"
+          },
+          "refId": "A",
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT (compound->>'data') AS \"t\"\nFROM attributes\nWHERE entityid = 'urn:ngsi-ld:HRIEvent:stt' AND id LIKE '%/transcript'\nORDER BY ts DESC LIMIT 1"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#60a5fa",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/.*/",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value",
+        "orientation": "auto",
+        "wideLayout": true,
+        "showPercentChange": false
+      }
+    },
+    {
+      "id": 22,
+      "type": "state-timeline",
+      "title": "Engagement · recognition mode · acoustic condition",
+      "description": "",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "aura-timescale"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 15,
+        "w": 16,
+        "h": 6
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "aura-timescale"
+          },
+          "refId": "A",
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT coalesce(observedat, ts) AS \"time\", COALESCE((SELECT t.v FROM jsonb_array_elements_text(compound->'values') WITH ORDINALITY AS t(v, i) WHERE compound->'keys'->>(t.i::int - 1) = 'engagement'), (SELECT kv->>'value' FROM jsonb_array_elements(compound->'values') kv WHERE kv->>'key' = 'engagement')) AS \"Engagement\"\nFROM attributes\nWHERE entityid = 'urn:ngsi-ld:HRIModuleStatus:intent' AND id LIKE '%/status' AND coalesce(observedat, ts) BETWEEN $__timeFrom() AND $__timeTo()\nORDER BY 1"
+        },
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "aura-timescale"
+          },
+          "refId": "B",
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT coalesce(observedat, ts) AS \"time\", COALESCE((SELECT t.v FROM jsonb_array_elements_text(compound->'values') WITH ORDINALITY AS t(v, i) WHERE compound->'keys'->>(t.i::int - 1) = 'recognition_mode'), (SELECT kv->>'value' FROM jsonb_array_elements(compound->'values') kv WHERE kv->>'key' = 'recognition_mode')) AS \"Recognition\"\nFROM attributes\nWHERE entityid = 'urn:ngsi-ld:HRIModuleStatus:intent' AND id LIKE '%/status' AND coalesce(observedat, ts) BETWEEN $__timeFrom() AND $__timeTo()\nORDER BY 1"
+        },
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "aura-timescale"
+          },
+          "refId": "C",
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT coalesce(observedat, ts) AS \"time\", COALESCE((SELECT t.v FROM jsonb_array_elements_text(compound->'values') WITH ORDINALITY AS t(v, i) WHERE compound->'keys'->>(t.i::int - 1) = 'acoustic_condition'), (SELECT kv->>'value' FROM jsonb_array_elements(compound->'values') kv WHERE kv->>'key' = 'acoustic_condition')) AS \"Condition\"\nFROM attributes\nWHERE entityid = 'urn:ngsi-ld:HRIModuleStatus:intent' AND id LIKE '%/status' AND coalesce(observedat, ts) BETWEEN $__timeFrom() AND $__timeTo()\nORDER BY 1"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#64748b",
+                "value": null
+              }
+            ]
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "ENGAGED": {
+                  "text": "ENGAGED",
+                  "color": "#22c55e",
+                  "index": 0
+                },
+                "ATTENDING": {
+                  "text": "ATTENDING",
+                  "color": "#f59e0b",
+                  "index": 1
+                },
+                "DISENGAGED": {
+                  "text": "DISENGAGED",
+                  "color": "#64748b",
+                  "index": 2
+                }
+              }
+            },
+            {
+              "type": "value",
+              "options": {
+                "acoustic": {
+                  "text": "acoustic",
+                  "color": "#38bdf8",
+                  "index": 0
+                },
+                "acoustic+thermal": {
+                  "text": "acoustic + thermal",
+                  "color": "#2dd4bf",
+                  "index": 1
+                },
+                "fused": {
+                  "text": "fused",
+                  "color": "#a78bfa",
+                  "index": 2
+                },
+                "gesture-fallback": {
+                  "text": "gesture fallback",
+                  "color": "#f59e0b",
+                  "index": 3
+                }
+              }
+            },
+            {
+              "type": "value",
+              "options": {
+                "clean": {
+                  "text": "clean",
+                  "color": "#22c55e",
+                  "index": 0
+                },
+                "noise": {
+                  "text": "noise > 75 dB",
+                  "color": "#f59e0b",
+                  "index": 1
+                },
+                "mask": {
+                  "text": "full-face mask",
+                  "color": "#fb923c",
+                  "index": 2
+                },
+                "noise+mask": {
+                  "text": "noise + mask",
+                  "color": "#ef4444",
+                  "index": 3
+                }
+              }
+            }
+          ],
+          "custom": {
+            "fillOpacity": 80,
+            "lineWidth": 0
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "mergeValues": true,
+        "showValue": "auto",
+        "alignValue": "left",
+        "rowHeight": 0.85,
+        "legend": {
+          "showLegend": false
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      }
+    },
+    {
+      "id": 23,
+      "type": "table",
+      "title": "Module health",
+      "description": "Latest DiagnosticStatus per AURA module (/aura/<module>/status)",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "aura-timescale"
+      },
+      "gridPos": {
+        "x": 16,
+        "y": 15,
+        "w": 8,
+        "h": 6
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "aura-timescale"
+          },
+          "refId": "A",
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT DISTINCT ON (entityid) split_part(entityid, ':', 4) AS \"Module\",\n  CASE (compound->>'level')::int WHEN 0 THEN 'OK' WHEN 1 THEN 'WARN' WHEN 2 THEN 'ERROR' ELSE 'STALE' END AS \"Health\",\n  COALESCE((SELECT t.v FROM jsonb_array_elements_text(compound->'values') WITH ORDINALITY AS t(v, i) WHERE compound->'keys'->>(t.i::int - 1) = 'rate'), (SELECT kv->>'value' FROM jsonb_array_elements(compound->'values') kv WHERE kv->>'key' = 'rate'))::float AS \"Rate\", COALESCE((SELECT t.v FROM jsonb_array_elements_text(compound->'values') WITH ORDINALITY AS t(v, i) WHERE compound->'keys'->>(t.i::int - 1) = 'rate_unit'), (SELECT kv->>'value' FROM jsonb_array_elements(compound->'values') kv WHERE kv->>'key' = 'rate_unit')) AS \"Unit\", COALESCE((SELECT t.v FROM jsonb_array_elements_text(compound->'values') WITH ORDINALITY AS t(v, i) WHERE compound->'keys'->>(t.i::int - 1) = 'latency_ms'), (SELECT kv->>'value' FROM jsonb_array_elements(compound->'values') kv WHERE kv->>'key' = 'latency_ms'))::float AS \"Latency\"\nFROM attributes WHERE entityid LIKE 'urn:ngsi-ld:HRIModuleStatus:%' AND id LIKE '%/status'\nORDER BY entityid, ts DESC"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            }
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Health"
+            },
+            "properties": [
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "OK": {
+                        "text": "OK",
+                        "color": "#22c55e",
+                        "index": 0
+                      },
+                      "WARN": {
+                        "text": "WARN",
+                        "color": "#f59e0b",
+                        "index": 1
+                      },
+                      "ERROR": {
+                        "text": "ERROR",
+                        "color": "#ef4444",
+                        "index": 2
+                      },
+                      "STALE": {
+                        "text": "STALE",
+                        "color": "#64748b",
+                        "index": 3
+                      }
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-background",
+                  "mode": "basic"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Rate"
+            },
+            "properties": [
+              {
+                "id": "decimals",
+                "value": 2
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Latency"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "ms"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false
+        }
+      }
+    },
+    {
+      "id": 24,
+      "type": "row",
+      "title": "Live HRI event stream (HRIEvent:intent · /aura/intent/event)",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 21,
+        "w": 24,
+        "h": 1
+      },
+      "panels": []
+    },
+    {
+      "id": 25,
+      "type": "table",
+      "title": "Intent events",
+      "description": "Every decision of the confidence-aware interaction policy (aura_interfaces/IntentEvent). Kept by TROE as event history.",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "aura-timescale"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 22,
+        "w": 16,
+        "h": 12
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "aura-timescale"
+          },
+          "refId": "A",
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT coalesce(observedat, ts) AS \"Time\", compound->>'intent' AS \"Intent\", compound->>'utterance' AS \"Utterance\",\n  CASE (compound->>'decision')::int WHEN 0 THEN 'ACCEPT' WHEN 1 THEN 'CONFIRM' WHEN 2 THEN 'REJECT' WHEN 3 THEN 'IGNORE' END AS \"Decision\", compound->>'outcome' AS \"Outcome\",\n  (compound->>'confidence')::float AS \"Confidence\", (compound->>'latency_ms')::float AS \"Latency\",\n  compound->>'modality' AS \"Modality\", compound->>'acoustic_condition' AS \"Condition\",\n  compound->>'operator_id' AS \"Operator\"\nFROM attributes\nWHERE entityid = 'urn:ngsi-ld:HRIEvent:intent' AND id LIKE '%/intentEvent' AND coalesce(observedat, ts) BETWEEN $__timeFrom() AND $__timeTo()\nORDER BY ts DESC LIMIT 200"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": false,
+            "filterable": true
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Decision"
+            },
+            "properties": [
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "ACCEPT": {
+                        "text": "ACCEPT",
+                        "color": "#22c55e",
+                        "index": 0
+                      },
+                      "CONFIRM": {
+                        "text": "CONFIRM",
+                        "color": "#f59e0b",
+                        "index": 1
+                      },
+                      "REJECT": {
+                        "text": "REJECT",
+                        "color": "#ef4444",
+                        "index": 2
+                      },
+                      "IGNORE": {
+                        "text": "IGNORE",
+                        "color": "#64748b",
+                        "index": 3
+                      }
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-background",
+                  "mode": "basic"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Outcome"
+            },
+            "properties": [
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "correct": {
+                        "text": "correct",
+                        "color": "#22c55e",
+                        "index": 0
+                      },
+                      "recovered": {
+                        "text": "recovered",
+                        "color": "#2dd4bf",
+                        "index": 1
+                      },
+                      "misrecognized": {
+                        "text": "misrecognized",
+                        "color": "#fb923c",
+                        "index": 2
+                      },
+                      "false_activation": {
+                        "text": "false activation",
+                        "color": "#ef4444",
+                        "index": 3
+                      },
+                      "rejected": {
+                        "text": "rejected",
+                        "color": "#64748b",
+                        "index": 4
+                      }
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text",
+                  "mode": "basic"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Condition"
+            },
+            "properties": [
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "clean": {
+                        "text": "clean",
+                        "color": "#22c55e",
+                        "index": 0
+                      },
+                      "noise": {
+                        "text": "noise > 75 dB",
+                        "color": "#f59e0b",
+                        "index": 1
+                      },
+                      "mask": {
+                        "text": "full-face mask",
+                        "color": "#fb923c",
+                        "index": 2
+                      },
+                      "noise+mask": {
+                        "text": "noise + mask",
+                        "color": "#ef4444",
+                        "index": 3
+                      }
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text",
+                  "mode": "basic"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Confidence"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percentunit"
+              },
+              {
+                "id": "min",
+                "value": 0
+              },
+              {
+                "id": "max",
+                "value": 1
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "#ef4444",
+                      "value": null
+                    },
+                    {
+                      "color": "#f59e0b",
+                      "value": 0.7
+                    },
+                    {
+                      "color": "#22c55e",
+                      "value": 0.8
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "gauge",
+                  "mode": "lcd",
+                  "valueDisplayMode": "text"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Latency"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "ms"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "#22c55e",
+                      "value": null
+                    },
+                    {
+                      "color": "#f59e0b",
+                      "value": 450
+                    },
+                    {
+                      "color": "#ef4444",
+                      "value": 600
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Time"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 90
+              },
+              {
+                "id": "unit",
+                "value": "time:HH:mm:ss"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Utterance"
+            },
+            "properties": [
+              {
+                "id": "custom.minWidth",
+                "value": 160
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false
+        },
+        "sortBy": [
+          {
+            "displayName": "Time",
+            "desc": true
+          }
+        ]
+      }
+    },
+    {
+      "id": 26,
+      "type": "piechart",
+      "title": "Decisions",
+      "description": "",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "aura-timescale"
+      },
+      "gridPos": {
+        "x": 16,
+        "y": 22,
+        "w": 8,
+        "h": 6
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "aura-timescale"
+          },
+          "refId": "A",
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT count(*) FILTER (WHERE (compound->>'decision')::int = 0) AS \"ACCEPT\",\n  count(*) FILTER (WHERE (compound->>'decision')::int = 1) AS \"CONFIRM\",\n  count(*) FILTER (WHERE (compound->>'decision')::int = 2) AS \"REJECT\",\n  count(*) FILTER (WHERE (compound->>'decision')::int = 3) AS \"IGNORE\"\nFROM attributes\nWHERE entityid = 'urn:ngsi-ld:HRIEvent:intent' AND id LIKE '%/intentEvent' AND coalesce(observedat, ts) BETWEEN $__timeFrom() AND $__timeTo()"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "ACCEPT"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#22c55e"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "CONFIRM"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#f59e0b"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "REJECT"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#ef4444"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "IGNORE"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#64748b"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "pieType": "donut",
+        "displayLabels": [
+          "percent"
+        ],
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true,
+          "values": [
+            "value",
+            "percent"
+          ]
+        },
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      }
+    },
+    {
+      "id": 27,
+      "type": "piechart",
+      "title": "Modality",
+      "description": "",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "aura-timescale"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 34,
+        "w": 8,
+        "h": 6
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "aura-timescale"
+          },
+          "refId": "A",
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT count(*) FILTER (WHERE compound->>'modality'='voice') AS \"voice\",\n  count(*) FILTER (WHERE compound->>'modality'='gesture') AS \"gesture\",\n  count(*) FILTER (WHERE compound->>'modality'='fused') AS \"fused\"\nFROM attributes\nWHERE entityid = 'urn:ngsi-ld:HRIEvent:intent' AND id LIKE '%/intentEvent' AND coalesce(observedat, ts) BETWEEN $__timeFrom() AND $__timeTo()"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "voice"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#38bdf8"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "gesture"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#f59e0b"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "fused"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#a78bfa"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "pieType": "donut",
+        "displayLabels": [
+          "percent"
+        ],
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true,
+          "values": [
+            "value",
+            "percent"
+          ]
+        },
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      }
+    },
+    {
+      "id": 28,
+      "type": "row",
+      "title": "Recognition quality",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 40,
+        "w": 24,
+        "h": 1
+      },
+      "panels": []
+    },
+    {
+      "id": 29,
+      "type": "timeseries",
+      "title": "Noise vs acoustic confidence",
+      "description": "Each dot is one intent event. Confidence drops as LAeq rises above ~75 dB.",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "aura-timescale"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 41,
+        "w": 12,
+        "h": 9
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "aura-timescale"
+          },
+          "refId": "A",
+          "editorMode": "code",
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "SELECT coalesce(observedat, ts) AS \"time\", (compound->>'la_eq')::float AS \"Noise LAeq\"\nFROM attributes\nWHERE entityid = 'urn:ngsi-ld:AirQualityObserved:$robot' AND id LIKE '%/reading' AND coalesce(observedat, ts) BETWEEN $__timeFrom() AND $__timeTo()\nORDER BY 1"
+        },
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "aura-timescale"
+          },
+          "refId": "B",
+          "editorMode": "code",
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "SELECT coalesce(observedat, ts) AS \"time\", (compound->>'confidence')::float AS \"Confidence\"\nFROM attributes\nWHERE entityid = 'urn:ngsi-ld:HRIEvent:intent' AND id LIKE '%/intentEvent' AND coalesce(observedat, ts) BETWEEN $__timeFrom() AND $__timeTo()\nORDER BY 1"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "gradientMode": "opacity",
+            "showPoints": "never",
+            "pointSize": 5,
+            "spanNulls": true,
+            "axisPlacement": "auto",
+            "axisBorderShow": false,
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Noise LAeq"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#f59e0b"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Confidence"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#38bdf8"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Noise LAeq"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "dB"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Confidence"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percentunit"
+              },
+              {
+                "id": "min",
+                "value": 0
+              },
+              {
+                "id": "max",
+                "value": 1
+              },
+              {
+                "id": "custom.axisPlacement",
+                "value": "right"
+              },
+              {
+                "id": "custom.drawStyle",
+                "value": "points"
+              },
+              {
+                "id": "custom.pointSize",
+                "value": 7
+              },
+              {
+                "id": "custom.fillOpacity",
+                "value": 0
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 30,
+      "type": "xychart",
+      "title": "Confidence vs latency",
+      "description": "",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "aura-timescale"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 41,
+        "w": 12,
+        "h": 9
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "aura-timescale"
+          },
+          "refId": "A",
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT (compound->>'confidence')::float AS \"Confidence\", (compound->>'latency_ms')::float AS \"Latency (ms)\"\nFROM attributes\nWHERE entityid = 'urn:ngsi-ld:HRIEvent:intent' AND id LIKE '%/intentEvent' AND coalesce(observedat, ts) BETWEEN $__timeFrom() AND $__timeTo()"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "show": "points",
+            "pointSize": {
+              "fixed": 6
+            },
+            "fillOpacity": 60
+          },
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#a78bfa"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Confidence"
+            },
+            "properties": [
+              {
+                "id": "min",
+                "value": 0
+              },
+              {
+                "id": "max",
+                "value": 1
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Latency (ms)"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "ms"
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "mapping": "auto",
+        "series": [
+          {}
+        ],
+        "legend": {
+          "showLegend": false
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      }
+    },
+    {
+      "id": 31,
+      "type": "row",
+      "title": "KPI trends",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 50,
+        "w": 24,
+        "h": 1
+      },
+      "panels": []
+    },
+    {
+      "id": 32,
+      "type": "timeseries",
+      "title": "Success · rejection · false activation",
+      "description": "",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "aura-timescale"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 51,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "aura-timescale"
+          },
+          "refId": "A",
+          "editorMode": "code",
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "SELECT coalesce(observedat, ts) AS \"time\", number AS \"Success\"\nFROM attributes\nWHERE entityid LIKE 'urn:ngsi-ld:HRISession:%' AND id LIKE '%/commandSuccessRate' AND coalesce(observedat, ts) BETWEEN $__timeFrom() AND $__timeTo()\nORDER BY 1"
+        },
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "aura-timescale"
+          },
+          "refId": "B",
+          "editorMode": "code",
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "SELECT coalesce(observedat, ts) AS \"time\", number AS \"Rejection (5 min)\"\nFROM attributes\nWHERE entityid LIKE 'urn:ngsi-ld:HRISession:%' AND id LIKE '%/windowRejectionRate' AND coalesce(observedat, ts) BETWEEN $__timeFrom() AND $__timeTo()\nORDER BY 1"
+        },
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "aura-timescale"
+          },
+          "refId": "C",
+          "editorMode": "code",
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "SELECT coalesce(observedat, ts) AS \"time\", number AS \"False activation\"\nFROM attributes\nWHERE entityid LIKE 'urn:ngsi-ld:HRISession:%' AND id LIKE '%/falseActivationRate' AND coalesce(observedat, ts) BETWEEN $__timeFrom() AND $__timeTo()\nORDER BY 1"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "stepAfter",
+            "lineWidth": 2,
+            "fillOpacity": 8,
+            "gradientMode": "opacity",
+            "showPoints": "never",
+            "pointSize": 5,
+            "spanNulls": true,
+            "axisPlacement": "auto",
+            "axisBorderShow": false,
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Success"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#22c55e"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Rejection (5 min)"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#ef4444"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "False activation"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#fb923c"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 33,
+      "type": "timeseries",
+      "title": "Latency (mean · p95)",
+      "description": "",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "aura-timescale"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 51,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "aura-timescale"
+          },
+          "refId": "A",
+          "editorMode": "code",
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "SELECT coalesce(observedat, ts) AS \"time\", number AS \"Mean\"\nFROM attributes\nWHERE entityid LIKE 'urn:ngsi-ld:HRISession:%' AND id LIKE '%/meanLatency' AND coalesce(observedat, ts) BETWEEN $__timeFrom() AND $__timeTo()\nORDER BY 1"
+        },
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "aura-timescale"
+          },
+          "refId": "B",
+          "editorMode": "code",
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "SELECT coalesce(observedat, ts) AS \"time\", number AS \"p95\"\nFROM attributes\nWHERE entityid LIKE 'urn:ngsi-ld:HRISession:%' AND id LIKE '%/p95Latency' AND coalesce(observedat, ts) BETWEEN $__timeFrom() AND $__timeTo()\nORDER BY 1"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "transparent",
+                "value": null
+              },
+              {
+                "color": "#ef4444",
+                "value": 600
+              }
+            ]
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "stepAfter",
+            "lineWidth": 2,
+            "fillOpacity": 8,
+            "gradientMode": "opacity",
+            "showPoints": "never",
+            "pointSize": 5,
+            "spanNulls": true,
+            "axisPlacement": "auto",
+            "axisBorderShow": false,
+            "thresholdsStyle": {
+              "mode": "line"
+            }
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Mean"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#38bdf8"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "p95"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#a78bfa"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    }
+  ]
+}

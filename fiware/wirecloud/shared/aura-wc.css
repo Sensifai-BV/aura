@@ -1,0 +1,39 @@
+/* AURA widgets inside WireCloud: the widget iframe is the Panel. Values are AURA Telemetry tokens. */
+html, body { height: 100%; }
+body { overflow: hidden; }
+#root { height: 100%; box-sizing: border-box; }
+#root > .au-panel { height: 100%; border-radius: 0; border: 0; box-sizing: border-box; }
+#root > .au-panel > .au-panel-body { flex: 1 1 auto; overflow: auto; }
+.au-log { max-height: none; height: 100%; }
+
+.wc-kpis { height: 100%; box-sizing: border-box; padding: var(--space-3); display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: var(--space-3); align-content: start; overflow: auto; }
+
+.wc-btn { font: inherit; font-size: 12px; line-height: 16px; color: var(--ink); background: var(--surface-raised); border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm); padding: 5px 10px; cursor: pointer; text-decoration: none; white-space: nowrap; }
+.wc-btn:hover { background: var(--surface-sunken); }
+.wc-btn:disabled { opacity: .5; cursor: default; }
+.wc-select { font: inherit; font-size: 12px; color: var(--ink); background: var(--surface-raised); border: 1px solid var(--line-strong); border-radius: var(--radius-sm); padding: 4px 6px; }
+.wc-link { color: var(--accent); }
+.wc-row-end { display: flex; align-items: center; justify-content: flex-end; gap: var(--space-3); margin-top: var(--space-3); font-size: 11px; }
+
+.wc-filter { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-bottom: var(--space-3); }
+.wc-chip { font: inherit; font-size: 11px; color: var(--ink-muted); background: none; border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 2px 6px; cursor: pointer; }
+.wc-chip .au-tag { border: 0; padding: 0; }
+.wc-chip.is-on { border-color: var(--accent); color: var(--ink); background: var(--accent-soft); }
+
+.wc-facts { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3) var(--space-4); }
+.wc-fact { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.wc-fact-k { font-size: 11px; line-height: 14px; font-weight: 600; letter-spacing: .06em; color: var(--ink-muted); }
+.wc-fact-v { font-size: 13px; line-height: 20px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.wc-alerts { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.wc-alert { display: grid; grid-template-columns: 104px 1fr auto; gap: var(--space-3); align-items: start; padding: var(--space-2) 0; border-top: 1px solid var(--line); }
+.wc-alert:first-child { border-top: 0; }
+.wc-alert.is-acked { opacity: .7; }
+.wc-alert .au-badge { justify-self: start; text-transform: uppercase; }
+.wc-alert-head { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: baseline; font-size: 11px; }
+.wc-alert-rule { font-size: 12px; font-weight: 600; color: var(--ink); }
+.wc-alert-act { display: flex; gap: var(--space-2); }
+
+.wc-control { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); }
+.wc-status { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); margin-top: var(--space-3); font-size: 11px; }

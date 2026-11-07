@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<operator xmlns="http://wirecloud.conwet.fi.upm.es/ns/macdescription/1" vendor="Sensifai" name="aura-ngsild-source" version="1.2.3">
+  <details>
+    <title>AURA NGSI-LD source</title>
+    <authors>Sensifai</authors>
+    <email>admin@sensifai.com</email>
+    <description>Subscribes to Orion-LD (NGSI-LD) through ngsi-proxy and pushes every notified entity to the AURA widgets.</description>
+    <license>Apache-2.0</license>
+  </details>
+  <preferences>
+    <preference name="ngsi_server" type="text" label="Orion-LD URL" description="NGSI-LD broker as reached from WireCloud's proxy" default="http://orion:1026"/>
+    <preference name="ngsi_proxy_public" type="text" label="ngsi-proxy URL (browser)" description="ngsi-proxy as reached from the browser" default="http://localhost:3001"/>
+    <preference name="ngsi_proxy_internal" type="text" label="ngsi-proxy URL (broker)" description="ngsi-proxy as reached from Orion-LD (notification endpoint host)" default="http://ngsiproxy:3001"/>
+    <preference name="entity_types" type="text" label="Entity types" description="Comma-separated NGSI-LD types to subscribe to" default="Robot,AirQualityObserved,HRIEvent,HRIModuleStatus,HRISessionKPI,Alert,MissionReport"/>
+  </preferences>
+  <wiring>
+    <outputendpoint name="entities" type="text" label="NGSI-LD entities" description="Arrays of normalized NGSI-LD entities, one per Orion-LD notification" friendcode="ngsild-entities"/>
+  </wiring>
+  <scripts>
+    <script src="js/main.js"/>
+  </scripts>
+</operator>

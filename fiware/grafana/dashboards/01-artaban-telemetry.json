@@ -1,0 +1,2793 @@
+{
+  "uid": "artaban-telemetry",
+  "title": "Artaban · Robot telemetry",
+  "description": "Live telemetry of the Artaban quadruped: ROS 2 topics bridged into Orion-LD (NGSI-LD) by its native DDS support, kept by the TROE historian.",
+  "tags": [
+    "aura",
+    "arise",
+    "fiware",
+    "telemetry"
+  ],
+  "timezone": "browser",
+  "editable": false,
+  "graphTooltip": 1,
+  "liveNow": false,
+  "refresh": "5s",
+  "schemaVersion": 39,
+  "version": 1,
+  "style": "dark",
+  "time": {
+    "from": "now-30m",
+    "to": "now"
+  },
+  "timepicker": {
+    "refresh_intervals": [
+      "5s",
+      "10s",
+      "30s",
+      "1m",
+      "5m",
+      "15m"
+    ]
+  },
+  "fiscalYearStartMonth": 0,
+  "links": [
+    {
+      "title": "AURA dashboards",
+      "type": "dashboards",
+      "tags": [
+        "aura"
+      ],
+      "asDropdown": false,
+      "includeVars": true,
+      "keepTime": true,
+      "icon": "external link",
+      "targetBlank": false
+    },
+    {
+      "title": "AURA dashboard (WireCloud)",
+      "type": "link",
+      "url": "http://localhost:8000/admin/aura",
+      "icon": "external link",
+      "targetBlank": true,
+      "tooltip": "AURA HRI condition-monitoring widgets in FIWARE WireCloud"
+    },
+    {
+      "title": "Orion-LD",
+      "type": "link",
+      "url": "http://localhost:1026/ngsi-ld/v1/entities?local=true&limit=100",
+      "icon": "info",
+      "targetBlank": true,
+      "tooltip": "NGSI-LD entities in the context broker"
+    }
+  ],
+  "templating": {
+    "list": [
+      {
+        "name": "robot",
+        "label": "Robot",
+        "type": "custom",
+        "query": "artaban-01",
+        "current": {
+          "selected": true,
+          "text": "artaban-01",
+          "value": "artaban-01"
+        },
+        "options": [
+          {
+            "selected": true,
+            "text": "artaban-01",
+            "value": "artaban-01"
+          }
+        ],
+        "hide": 0,
+        "includeAll": false,
+        "multi": false,
+        "description": "Robot id suffix used in NGSI-LD entity ids (urn:ngsi-ld:Robot:<robot>)"
+      }
+    ]
+  },
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "text",
+      "title": "",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 3
+      },
+      "options": {
+        "mode": "markdown",
+        "content": "### Artaban · AURA — Robot telemetry\n`ROS 2 / Vulcanexus` → `Orion-LD (NGSI-LD, DDS bridge)` → `TROE · TimescaleDB` → `Mintaka` → **Grafana** &nbsp;·&nbsp; Powered by FIWARE · ARISE all-in-one middleware &nbsp;·&nbsp; [Open AURA dashboard (WireCloud) ↗](http://localhost:8000/admin/aura)"
+      },
+      "transparent": true
+    },
+    {
+      "id": 2,
+      "type": "row",
+      "title": "Status (/artaban/status · /battery_state)",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 3,
+        "w": 24,
+        "h": 1
+      },
+      "panels": []
+    },
+    {
+      "id": 3,
+      "type": "gauge",
+      "title": "Battery",
+      "description": "State of charge: Robot.battery (sensor_msgs/BatteryState).percentage",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "aura-timescale"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 4,
+        "w": 4,
+        "h": 7
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "aura-timescale"
+          },
+          "refId": "A",
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT 100 * (compound->>'percentage')::float AS \"Battery\"\nFROM attributes\nWHERE entityid = 'urn:ngsi-ld:Robot:$robot' AND id LIKE '%/battery'\nORDER BY ts DESC LIMIT 1"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "decimals": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#ef4444",
+                "value": null
+              },
+              {
+                "color": "#fb923c",
+                "value": 12
+              },
+              {
+                "color": "#f59e0b",
+                "value": 25
+              },
+              {
+                "color": "#22c55e",
+                "value": 40
+              }
+            ]
+          },
+          "min": 0,
+          "max": 100
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true,
+        "minVizHeight": 75,
+        "sizing": "auto"
+      }
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Operation mode",
+      "description": "",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "aura-timescale"
+      },
+      "gridPos": {
+        "x": 4,
+        "y": 4,
+        "w": 5,
+        "h": 3
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "aura-timescale"
+          },
+          "refId": "A",
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT (compound->>'operation_mode') AS \"operation_mode\"\nFROM attributes\nWHERE entityid = 'urn:ngsi-ld:Robot:$robot' AND id LIKE '%/status'\nORDER BY ts DESC LIMIT 1"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#64748b",
+                "value": null
+              }
+            ]
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "supervised": {
+                  "text": "SUPERVISED",
+                  "color": "#38bdf8",
+                  "index": 0
+                },
+                "teleop": {
+                  "text": "TELEOP",
+                  "color": "#a78bfa",
+                  "index": 1
+                },
+                "autonomous": {
+                  "text": "AUTONOMOUS",
+                  "color": "#22c55e",
+                  "index": 2
+                },
+                "safe-stop": {
+                  "text": "SAFE-STOP",
+                  "color": "#ef4444",
+                  "index": 3
+                },
+                "docked": {
+                  "text": "DOCKED",
+                  "color": "#64748b",
+                  "index": 4
+                }
+              }
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/.*/",
+          "values": false
+        },
+        "colorMode": "background_solid",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value",
+        "orientation": "auto",
+        "wideLayout": true,
+        "showPercentChange": false
+      }
+    },
+    {
+      "id": 5,
+      "type": "stat",
+      "title": "Mission state",
+      "description": "",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "aura-timescale"
+      },
+      "gridPos": {
+        "x": 9,
+        "y": 4,
+        "w": 5,
+        "h": 3
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "aura-timescale"
+          },
+          "refId": "A",
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT (compound->>'mission_state') AS \"mission_state\"\nFROM attributes\nWHERE entityid = 'urn:ngsi-ld:Robot:$robot' AND id LIKE '%/status'\nORDER BY ts DESC LIMIT 1"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#64748b",
+                "value": null
+              }
+            ]
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "idle": {
+                  "text": "IDLE",
+                  "color": "#64748b",
+                  "index": 0
+                },
+                "navigating": {
+                  "text": "NAVIGATING",
+                  "color": "#38bdf8",
+                  "index": 1
+                },
+                "inspecting": {
+                  "text": "INSPECTING",
+                  "color": "#22c55e",
+                  "index": 2
+                },
+                "paused": {
+                  "text": "PAUSED",
+                  "color": "#f59e0b",
+                  "index": 3
+                },
+                "returning": {
+                  "text": "RETURNING",
+                  "color": "#60a5fa",
+                  "index": 4
+                },
+                "charging": {
+                  "text": "CHARGING",
+                  "color": "#2dd4bf",
+                  "index": 5
+                },
+                "safe-stop": {
+                  "text": "SAFE-STOP",
+                  "color": "#ef4444",
+                  "index": 6
+                }
+              }
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/.*/",
+          "values": false
+        },
+        "colorMode": "background_solid",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value",
+        "orientation": "auto",
+        "wideLayout": true,
+        "showPercentChange": false
+      }
+    },
+    {
+      "id": 6,
+      "type": "stat",
+      "title": "Gait",
+      "description": "",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "aura-timescale"
+      },
+      "gridPos": {
+        "x": 14,
+        "y": 4,
+        "w": 5,
+        "h": 3
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "aura-timescale"
+          },
+          "refId": "A",
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT (compound->>'gait') AS \"gait\"\nFROM attributes\nWHERE entityid = 'urn:ngsi-ld:Robot:$robot' AND id LIKE '%/status'\nORDER BY ts DESC LIMIT 1"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#64748b",
+                "value": null
+              }
+            ]
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "stand": {
+                  "text": "STAND",
+                  "color": "#64748b",
+                  "index": 0
+                },
+                "walk": {
+                  "text": "WALK",
+                  "color": "#38bdf8",
+                  "index": 1
+                },
+                "trot": {
+                  "text": "TROT",
+                  "color": "#22c55e",
+                  "index": 2
+                },
+                "stairs": {
+                  "text": "STAIRS",
+                  "color": "#a78bfa",
+                  "index": 3
+                },
+                "sit": {
+                  "text": "SIT",
+                  "color": "#64748b",
+                  "index": 4
+                }
+              }
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/.*/",
+          "values": false
+        },
+        "colorMode": "background_solid",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value",
+        "orientation": "auto",
+        "wideLayout": true,
+        "showPercentChange": false
+      }
+    },
+    {
+      "id": 7,
+      "type": "stat",
+      "title": "Safety",
+      "description": "",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "aura-timescale"
+      },
+      "gridPos": {
+        "x": 19,
+        "y": 4,
+        "w": 5,
+        "h": 3
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "aura-timescale"
+          },
+          "refId": "A",
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT (compound->>'safety_state') AS \"safety_state\"\nFROM attributes\nWHERE entityid = 'urn:ngsi-ld:Robot:$robot' AND id LIKE '%/status'\nORDER BY ts DESC LIMIT 1"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#64748b",
+                "value": null
+              }
+            ]
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "nominal": {
+                  "text": "NOMINAL",
+                  "color": "#22c55e",
+                  "index": 0
+                },
+                "warning": {
+                  "text": "WARNING",
+                  "color": "#f59e0b",
+                  "index": 1
+                },
+                "protective-stop": {
+                  "text": "PROTECTIVE STOP",
+                  "color": "#ef4444",
+                  "index": 2
+                }
+              }
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/.*/",
+          "values": false
+        },
+        "colorMode": "background_solid",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value",
+        "orientation": "auto",
+        "wideLayout": true,
+        "showPercentChange": false
+      }
+    },
+    {
+      "id": 8,
+      "type": "stat",
+      "title": "Mission",
+      "description": "",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "aura-timescale"
+      },
+      "gridPos": {
+        "x": 4,
+        "y": 7,
+        "w": 4,
+        "h": 4
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "aura-timescale"
+          },
+          "refId": "A",
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT (compound->>'mission_id') AS \"mission\"\nFROM attributes\nWHERE entityid = 'urn:ngsi-ld:Robot:$robot' AND id LIKE '%/status'\nORDER BY ts DESC LIMIT 1"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#60a5fa",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/.*/",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value",
+        "orientation": "auto",
+        "wideLayout": true,
+        "showPercentChange": false
+      }
+    },
+    {
+      "id": 9,
+      "type": "bargauge",
+      "title": "Mission progress",
+      "description": "",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "aura-timescale"
+      },
+      "gridPos": {
+        "x": 8,
+        "y": 7,
+        "w": 4,
+        "h": 4
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "aura-timescale"
+          },
+          "refId": "A",
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT (compound->>'mission_progress')::float AS \"Progress\"\nFROM attributes\nWHERE entityid = 'urn:ngsi-ld:Robot:$robot' AND id LIKE '%/status'\nORDER BY ts DESC LIMIT 1"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "decimals": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#38bdf8",
+                "value": null
+              }
+            ]
+          },
+          "min": 0,
+          "max": 100
+        },
+        "overrides": []
+      },
+      "options": {
+        "displayMode": "lcd",
+        "orientation": "horizontal",
+        "showUnfilled": true,
+        "valueMode": "color",
+        "namePlacement": "hidden",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "id": 10,
+      "type": "stat",
+      "title": "Waypoint",
+      "description": "",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "aura-timescale"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 7,
+        "w": 6,
+        "h": 4
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "aura-timescale"
+          },
+          "refId": "A",
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT (compound->>'current_waypoint') AS \"wp\"\nFROM attributes\nWHERE entityid = 'urn:ngsi-ld:Robot:$robot' AND id LIKE '%/status'\nORDER BY ts DESC LIMIT 1"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#a78bfa",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/.*/",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value",
+        "orientation": "auto",
+        "wideLayout": true,
+        "showPercentChange": false
+      }
+    },
+    {
+      "id": 11,
+      "type": "stat",
+      "title": "E-stop",
+      "description": "",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "aura-timescale"
+      },
+      "gridPos": {
+        "x": 18,
+        "y": 7,
+        "w": 6,
+        "h": 4
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "aura-timescale"
+          },
+          "refId": "A",
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT CASE WHEN (compound->>'e_stop')::boolean THEN 'ENGAGED' ELSE 'released' END AS \"E-stop\"\nFROM attributes\nWHERE entityid = 'urn:ngsi-ld:Robot:$robot' AND id LIKE '%/status'\nORDER BY ts DESC LIMIT 1"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#64748b",
+                "value": null
+              }
+            ]
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "ENGAGED": {
+                  "text": "ENGAGED",
+                  "color": "#ef4444",
+                  "index": 0
+                },
+                "released": {
+                  "text": "released",
+                  "color": "#22c55e",
+                  "index": 1
+                }
+              }
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/.*/",
+          "values": false
+        },
+        "colorMode": "background_solid",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value",
+        "orientation": "auto",
+        "wideLayout": true,
+        "showPercentChange": false
+      }
+    },
+    {
+      "id": 12,
+      "type": "row",
+      "title": "Power (/battery_state · sensor_msgs/BatteryState)",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 11,
+        "w": 24,
+        "h": 1
+      },
+      "panels": []
+    },
+    {
+      "id": 13,
+      "type": "timeseries",
+      "title": "Battery state of charge",
+      "description": "BatteryState.percentage; shaded bands follow the batteryLow alert thresholds",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "aura-timescale"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 12,
+        "w": 8,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "aura-timescale"
+          },
+          "refId": "A",
+          "editorMode": "code",
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "SELECT coalesce(observedat, ts) AS \"time\", 100 * (compound->>'percentage')::float AS \"SoC\"\nFROM attributes\nWHERE entityid = 'urn:ngsi-ld:Robot:$robot' AND id LIKE '%/battery' AND coalesce(observedat, ts) BETWEEN $__timeFrom() AND $__timeTo()\nORDER BY 1"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#ef4444",
+                "value": null
+              },
+              {
+                "color": "#fb923c",
+                "value": 12
+              },
+              {
+                "color": "#f59e0b",
+                "value": 25
+              },
+              {
+                "color": "#22c55e",
+                "value": 40
+              }
+            ]
+          },
+          "min": 0,
+          "max": 100,
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "fillOpacity": 18,
+            "gradientMode": "opacity",
+            "showPoints": "never",
+            "pointSize": 5,
+            "spanNulls": true,
+            "axisPlacement": "auto",
+            "axisBorderShow": false,
+            "thresholdsStyle": {
+              "mode": "area"
+            }
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "SoC"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#22c55e"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 14,
+      "type": "timeseries",
+      "title": "Voltage · current",
+      "description": "",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "aura-timescale"
+      },
+      "gridPos": {
+        "x": 8,
+        "y": 12,
+        "w": 8,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "aura-timescale"
+          },
+          "refId": "A",
+          "editorMode": "code",
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "SELECT coalesce(observedat, ts) AS \"time\", (compound->>'voltage')::float AS \"Voltage\", (compound->>'current')::float AS \"Current\"\nFROM attributes\nWHERE entityid = 'urn:ngsi-ld:Robot:$robot' AND id LIKE '%/battery' AND coalesce(observedat, ts) BETWEEN $__timeFrom() AND $__timeTo()\nORDER BY 1"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "fillOpacity": 6,
+            "gradientMode": "opacity",
+            "showPoints": "never",
+            "pointSize": 5,
+            "spanNulls": true,
+            "axisPlacement": "auto",
+            "axisBorderShow": false,
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Voltage"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#38bdf8"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Current"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#a78bfa"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Voltage"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "volt"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Current"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "amp"
+              },
+              {
+                "id": "custom.axisPlacement",
+                "value": "right"
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 15,
+      "type": "timeseries",
+      "title": "Power draw · battery temperature",
+      "description": "Power = voltage × current (negative while charging)",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "aura-timescale"
+      },
+      "gridPos": {
+        "x": 16,
+        "y": 12,
+        "w": 8,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "aura-timescale"
+          },
+          "refId": "A",
+          "editorMode": "code",
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "SELECT coalesce(observedat, ts) AS \"time\", (compound->>'voltage')::float * (compound->>'current')::float AS \"Power\", (compound->>'temperature')::float AS \"Battery temp\"\nFROM attributes\nWHERE entityid = 'urn:ngsi-ld:Robot:$robot' AND id LIKE '%/battery' AND coalesce(observedat, ts) BETWEEN $__timeFrom() AND $__timeTo()\nORDER BY 1"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "gradientMode": "opacity",
+            "showPoints": "never",
+            "pointSize": 5,
+            "spanNulls": true,
+            "axisPlacement": "auto",
+            "axisBorderShow": false,
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Power"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#f59e0b"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Battery temp"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#ef4444"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Power"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "watt"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Battery temp"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "celsius"
+              },
+              {
+                "id": "custom.axisPlacement",
+                "value": "right"
+              },
+              {
+                "id": "custom.fillOpacity",
+                "value": 0
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 16,
+      "type": "row",
+      "title": "Locomotion (/odom · /imu/data)",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 20,
+        "w": 24,
+        "h": 1
+      },
+      "panels": []
+    },
+    {
+      "id": 17,
+      "type": "xychart",
+      "title": "Position trail · site map (60 × 40 m)",
+      "description": "Odometry pose (nav_msgs/Odometry) in the site frame over the selected time range",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "aura-timescale"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 21,
+        "w": 8,
+        "h": 10
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "aura-timescale"
+          },
+          "refId": "A",
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT (compound #>> '{pose,pose,position,x}')::float AS \"x (m)\", (compound #>> '{pose,pose,position,y}')::float AS \"y (m)\"\nFROM attributes\nWHERE entityid = 'urn:ngsi-ld:Robot:$robot' AND id LIKE '%/odometry' AND coalesce(observedat, ts) BETWEEN $__timeFrom() AND $__timeTo()\nORDER BY ts"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "show": "points+lines",
+            "pointSize": {
+              "fixed": 4
+            },
+            "lineWidth": 1,
+            "fillOpacity": 40,
+            "axisPlacement": "auto"
+          },
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#38bdf8"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "x (m)"
+            },
+            "properties": [
+              {
+                "id": "min",
+                "value": 0
+              },
+              {
+                "id": "max",
+                "value": 60
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "y (m)"
+            },
+            "properties": [
+              {
+                "id": "min",
+                "value": 0
+              },
+              {
+                "id": "max",
+                "value": 40
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "mapping": "auto",
+        "series": [
+          {}
+        ],
+        "legend": {
+          "showLegend": false
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      }
+    },
+    {
+      "id": 18,
+      "type": "timeseries",
+      "title": "Speed",
+      "description": "Odometry twist.twist.linear.x",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "aura-timescale"
+      },
+      "gridPos": {
+        "x": 8,
+        "y": 21,
+        "w": 8,
+        "h": 5
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "aura-timescale"
+          },
+          "refId": "A",
+          "editorMode": "code",
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "SELECT coalesce(observedat, ts) AS \"time\", (compound #>> '{twist,twist,linear,x}')::float AS \"Speed\"\nFROM attributes\nWHERE entityid = 'urn:ngsi-ld:Robot:$robot' AND id LIKE '%/odometry' AND coalesce(observedat, ts) BETWEEN $__timeFrom() AND $__timeTo()\nORDER BY 1"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "velocityms",
+          "decimals": 2,
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "fillOpacity": 18,
+            "gradientMode": "opacity",
+            "showPoints": "never",
+            "pointSize": 5,
+            "spanNulls": true,
+            "axisPlacement": "auto",
+            "axisBorderShow": false,
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Speed"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#38bdf8"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 19,
+      "type": "timeseries",
+      "title": "IMU roll · pitch",
+      "description": "From the sensor_msgs/Imu orientation quaternion",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "aura-timescale"
+      },
+      "gridPos": {
+        "x": 16,
+        "y": 21,
+        "w": 8,
+        "h": 5
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "aura-timescale"
+          },
+          "refId": "A",
+          "editorMode": "code",
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "SELECT coalesce(observedat, ts) AS \"time\", degrees(atan2(2 * ((compound #>> '{orientation,w}')::float * (compound #>> '{orientation,x}')::float + (compound #>> '{orientation,y}')::float * (compound #>> '{orientation,z}')::float), 1 - 2 * ((compound #>> '{orientation,x}')::float^2 + (compound #>> '{orientation,y}')::float^2))) AS \"Roll\", degrees(asin(greatest(-1, least(1, 2 * ((compound #>> '{orientation,w}')::float * (compound #>> '{orientation,y}')::float - (compound #>> '{orientation,z}')::float * (compound #>> '{orientation,x}')::float))))) AS \"Pitch\"\nFROM attributes\nWHERE entityid = 'urn:ngsi-ld:Robot:$robot' AND id LIKE '%/imu' AND coalesce(observedat, ts) BETWEEN $__timeFrom() AND $__timeTo()\nORDER BY 1"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "degree",
+          "decimals": 1,
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "fillOpacity": 0,
+            "gradientMode": "opacity",
+            "showPoints": "never",
+            "pointSize": 5,
+            "spanNulls": true,
+            "axisPlacement": "auto",
+            "axisBorderShow": false,
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Roll"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#a78bfa"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Pitch"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#f472b6"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 20,
+      "type": "timeseries",
+      "title": "Odometry (mission)",
+      "description": "",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "aura-timescale"
+      },
+      "gridPos": {
+        "x": 8,
+        "y": 26,
+        "w": 8,
+        "h": 5
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "aura-timescale"
+          },
+          "refId": "A",
+          "editorMode": "code",
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "SELECT coalesce(observedat, ts) AS \"time\", (compound->>'odometry_m')::float AS \"Distance\"\nFROM attributes\nWHERE entityid = 'urn:ngsi-ld:Robot:$robot' AND id LIKE '%/status' AND coalesce(observedat, ts) BETWEEN $__timeFrom() AND $__timeTo()\nORDER BY 1"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "lengthm",
+          "decimals": 0,
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "fillOpacity": 18,
+            "gradientMode": "opacity",
+            "showPoints": "never",
+            "pointSize": 5,
+            "spanNulls": true,
+            "axisPlacement": "auto",
+            "axisBorderShow": false,
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Distance"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#2dd4bf"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 21,
+      "type": "stat",
+      "title": "Distance walked",
+      "description": "",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "aura-timescale"
+      },
+      "gridPos": {
+        "x": 16,
+        "y": 26,
+        "w": 4,
+        "h": 5
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "aura-timescale"
+          },
+          "refId": "A",
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT (compound->>'odometry_m')::float AS \"m\"\nFROM attributes\nWHERE entityid = 'urn:ngsi-ld:Robot:$robot' AND id LIKE '%/status'\nORDER BY ts DESC LIMIT 1"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "lengthm",
+          "decimals": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#2dd4bf",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/.*/",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value",
+        "orientation": "auto",
+        "wideLayout": true,
+        "showPercentChange": false
+      }
+    },
+    {
+      "id": 22,
+      "type": "stat",
+      "title": "Speed now",
+      "description": "",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "aura-timescale"
+      },
+      "gridPos": {
+        "x": 20,
+        "y": 26,
+        "w": 4,
+        "h": 5
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "aura-timescale"
+          },
+          "refId": "A",
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT (compound #>> '{twist,twist,linear,x}')::float AS \"m/s\"\nFROM attributes\nWHERE entityid = 'urn:ngsi-ld:Robot:$robot' AND id LIKE '%/odometry'\nORDER BY ts DESC LIMIT 1"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "velocityms",
+          "decimals": 2,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#38bdf8",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/.*/",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value",
+        "orientation": "auto",
+        "wideLayout": true,
+        "showPercentChange": false
+      }
+    },
+    {
+      "id": 23,
+      "type": "row",
+      "title": "Actuators · 12 joints (ArtabanStatus.joint_temperatures)",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 36,
+        "w": 24,
+        "h": 1
+      },
+      "panels": []
+    },
+    {
+      "id": 24,
+      "type": "bargauge",
+      "title": "Joint temperatures (latest)",
+      "description": "joint_names zipped with joint_temperatures — FL/FR/RL/RR legs × hip/thigh/calf actuators. Red > 70 °C triggers jointOverTemp.",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "aura-timescale"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 37,
+        "w": 12,
+        "h": 11
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "aura-timescale"
+          },
+          "refId": "A",
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "WITH s AS (\n  SELECT compound FROM attributes WHERE entityid = 'urn:ngsi-ld:Robot:$robot' AND id LIKE '%/status' ORDER BY ts DESC LIMIT 1\n), z AS (\n  SELECT name.value AS n, (temp.value #>> '{}')::float AS t\n  FROM s, jsonb_array_elements_text(s.compound->'joint_names') WITH ORDINALITY AS name(value, i)\n  JOIN jsonb_array_elements(s.compound->'joint_temperatures') WITH ORDINALITY AS temp(value, i) USING (i)\n)\nSELECT max(t) FILTER (WHERE n = 'FL_hip') AS \"FL hip\",\n  max(t) FILTER (WHERE n = 'FL_thigh') AS \"FL thigh\",\n  max(t) FILTER (WHERE n = 'FL_calf') AS \"FL calf\",\n  max(t) FILTER (WHERE n = 'FR_hip') AS \"FR hip\",\n  max(t) FILTER (WHERE n = 'FR_thigh') AS \"FR thigh\",\n  max(t) FILTER (WHERE n = 'FR_calf') AS \"FR calf\",\n  max(t) FILTER (WHERE n = 'RL_hip') AS \"RL hip\",\n  max(t) FILTER (WHERE n = 'RL_thigh') AS \"RL thigh\",\n  max(t) FILTER (WHERE n = 'RL_calf') AS \"RL calf\",\n  max(t) FILTER (WHERE n = 'RR_hip') AS \"RR hip\",\n  max(t) FILTER (WHERE n = 'RR_thigh') AS \"RR thigh\",\n  max(t) FILTER (WHERE n = 'RR_calf') AS \"RR calf\"\nFROM z"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "celsius",
+          "decimals": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#2dd4bf",
+                "value": null
+              },
+              {
+                "color": "#f59e0b",
+                "value": 55
+              },
+              {
+                "color": "#ef4444",
+                "value": 70
+              }
+            ]
+          },
+          "min": 20,
+          "max": 90
+        },
+        "overrides": []
+      },
+      "options": {
+        "displayMode": "gradient",
+        "orientation": "horizontal",
+        "showUnfilled": true,
+        "valueMode": "color",
+        "namePlacement": "left",
+        "sizing": "manual",
+        "minVizHeight": 14,
+        "maxVizHeight": 22,
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "id": 25,
+      "type": "timeseries",
+      "title": "Hottest joint",
+      "description": "",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "aura-timescale"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 37,
+        "w": 12,
+        "h": 11
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "aura-timescale"
+          },
+          "refId": "A",
+          "editorMode": "code",
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "SELECT coalesce(observedat, ts) AS \"time\", (compound->>'max_joint_temperature')::float AS \"Max joint temp\"\nFROM attributes\nWHERE entityid = 'urn:ngsi-ld:Robot:$robot' AND id LIKE '%/status' AND coalesce(observedat, ts) BETWEEN $__timeFrom() AND $__timeTo()\nORDER BY 1"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "celsius",
+          "decimals": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#2dd4bf",
+                "value": null
+              },
+              {
+                "color": "#f59e0b",
+                "value": 55
+              },
+              {
+                "color": "#ef4444",
+                "value": 70
+              }
+            ]
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "fillOpacity": 18,
+            "gradientMode": "opacity",
+            "showPoints": "never",
+            "pointSize": 5,
+            "spanNulls": true,
+            "axisPlacement": "auto",
+            "axisBorderShow": false,
+            "thresholdsStyle": {
+              "mode": "line+area"
+            }
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Max joint temp"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#fb923c"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 26,
+      "type": "row",
+      "title": "Edge compute · comms",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 48,
+        "w": 24,
+        "h": 1
+      },
+      "panels": []
+    },
+    {
+      "id": 27,
+      "type": "timeseries",
+      "title": "Edge computer load",
+      "description": "Edge AI computer running the AURA acoustic skill (ONNX/TensorRT)",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "aura-timescale"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 49,
+        "w": 8,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "aura-timescale"
+          },
+          "refId": "A",
+          "editorMode": "code",
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "SELECT coalesce(observedat, ts) AS \"time\", (compound->>'cpu_load')::float AS \"CPU\", (compound->>'gpu_load')::float AS \"GPU\", (compound->>'memory_usage')::float AS \"Memory\"\nFROM attributes\nWHERE entityid = 'urn:ngsi-ld:Robot:$robot' AND id LIKE '%/status' AND coalesce(observedat, ts) BETWEEN $__timeFrom() AND $__timeTo()\nORDER BY 1"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "fillOpacity": 8,
+            "gradientMode": "opacity",
+            "showPoints": "never",
+            "pointSize": 5,
+            "spanNulls": true,
+            "axisPlacement": "auto",
+            "axisBorderShow": false,
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "CPU"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#38bdf8"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "GPU"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#a78bfa"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Memory"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#64748b"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 28,
+      "type": "timeseries",
+      "title": "SoC temperature",
+      "description": "",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "aura-timescale"
+      },
+      "gridPos": {
+        "x": 8,
+        "y": 49,
+        "w": 4,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "aura-timescale"
+          },
+          "refId": "A",
+          "editorMode": "code",
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "SELECT coalesce(observedat, ts) AS \"time\", (compound->>'soc_temperature')::float AS \"SoC temp\"\nFROM attributes\nWHERE entityid = 'urn:ngsi-ld:Robot:$robot' AND id LIKE '%/status' AND coalesce(observedat, ts) BETWEEN $__timeFrom() AND $__timeTo()\nORDER BY 1"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "celsius",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#22c55e",
+                "value": null
+              },
+              {
+                "color": "#f59e0b",
+                "value": 75
+              },
+              {
+                "color": "#ef4444",
+                "value": 85
+              }
+            ]
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "fillOpacity": 18,
+            "gradientMode": "opacity",
+            "showPoints": "never",
+            "pointSize": 5,
+            "spanNulls": true,
+            "axisPlacement": "auto",
+            "axisBorderShow": false,
+            "thresholdsStyle": {
+              "mode": "line"
+            }
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "SoC temp"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#f59e0b"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 29,
+      "type": "timeseries",
+      "title": "Link quality",
+      "description": "commsDegraded fires at packet loss > 5 % or latency > 250 ms",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "aura-timescale"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 49,
+        "w": 8,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "aura-timescale"
+          },
+          "refId": "A",
+          "editorMode": "code",
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "SELECT coalesce(observedat, ts) AS \"time\", (compound->>'link_latency_ms')::float AS \"Latency\", (compound->>'packet_loss')::float AS \"Packet loss\"\nFROM attributes\nWHERE entityid = 'urn:ngsi-ld:Robot:$robot' AND id LIKE '%/status' AND coalesce(observedat, ts) BETWEEN $__timeFrom() AND $__timeTo()\nORDER BY 1"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "fillOpacity": 8,
+            "gradientMode": "opacity",
+            "showPoints": "never",
+            "pointSize": 5,
+            "spanNulls": true,
+            "axisPlacement": "auto",
+            "axisBorderShow": false,
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Latency"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#60a5fa"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Packet loss"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#ef4444"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Latency"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "ms"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Packet loss"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percent"
+              },
+              {
+                "id": "custom.axisPlacement",
+                "value": "right"
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 30,
+      "type": "stat",
+      "title": "Wi-Fi RSSI",
+      "description": "",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "aura-timescale"
+      },
+      "gridPos": {
+        "x": 20,
+        "y": 49,
+        "w": 4,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "aura-timescale"
+          },
+          "refId": "A",
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT (compound->>'wifi_rssi')::float AS \"dBm\"\nFROM attributes\nWHERE entityid = 'urn:ngsi-ld:Robot:$robot' AND id LIKE '%/status'\nORDER BY ts DESC LIMIT 1"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "dBm",
+          "decimals": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#ef4444",
+                "value": null
+              },
+              {
+                "color": "#f59e0b",
+                "value": -75
+              },
+              {
+                "color": "#22c55e",
+                "value": -65
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/.*/",
+          "values": false
+        },
+        "colorMode": "background_solid",
+        "graphMode": "area",
+        "justifyMode": "center",
+        "textMode": "value",
+        "orientation": "auto",
+        "wideLayout": true,
+        "showPercentChange": false
+      }
+    },
+    {
+      "id": 31,
+      "type": "row",
+      "title": "Environment · hazardous-site sensing (/artaban/environment)",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 57,
+        "w": 24,
+        "h": 1
+      },
+      "panels": []
+    },
+    {
+      "id": 32,
+      "type": "timeseries",
+      "title": "Noise level (LAeq)",
+      "description": "EnvironmentReading.la_eq. > 75 dB degrades acoustic recognition; > 85 dB raises noiseHazard",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "aura-timescale"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 58,
+        "w": 8,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "aura-timescale"
+          },
+          "refId": "A",
+          "editorMode": "code",
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "SELECT coalesce(observedat, ts) AS \"time\", (compound->>'la_eq')::float AS \"LAeq\", (compound->>'la_max')::float AS \"LAmax\"\nFROM attributes\nWHERE entityid = 'urn:ngsi-ld:AirQualityObserved:$robot' AND id LIKE '%/reading' AND coalesce(observedat, ts) BETWEEN $__timeFrom() AND $__timeTo()\nORDER BY 1"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "dB",
+          "decimals": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#22c55e",
+                "value": null
+              },
+              {
+                "color": "#f59e0b",
+                "value": 75
+              },
+              {
+                "color": "#ef4444",
+                "value": 85
+              }
+            ]
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "fillOpacity": 12,
+            "gradientMode": "opacity",
+            "showPoints": "never",
+            "pointSize": 5,
+            "spanNulls": true,
+            "axisPlacement": "auto",
+            "axisBorderShow": false,
+            "thresholdsStyle": {
+              "mode": "line"
+            }
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "LAeq"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#f59e0b"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "LAmax"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#64748b"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 33,
+      "type": "timeseries",
+      "title": "Gas (H₂S · CO · CH₄)",
+      "description": "AirQualityObserved.reading. gasDetected (critical) when H₂S > 10 ppm or CH₄ > 10 %LEL",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "aura-timescale"
+      },
+      "gridPos": {
+        "x": 8,
+        "y": 58,
+        "w": 8,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "aura-timescale"
+          },
+          "refId": "A",
+          "editorMode": "code",
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "SELECT coalesce(observedat, ts) AS \"time\", (compound->>'h2s_ppm')::float AS \"H₂S ppm\", (compound->>'co_ppm')::float AS \"CO ppm\", (compound->>'ch4_lel')::float AS \"CH₄ %LEL\"\nFROM attributes\nWHERE entityid = 'urn:ngsi-ld:AirQualityObserved:$robot' AND id LIKE '%/reading' AND coalesce(observedat, ts) BETWEEN $__timeFrom() AND $__timeTo()\nORDER BY 1"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "transparent",
+                "value": null
+              },
+              {
+                "color": "#ef4444",
+                "value": 10
+              }
+            ]
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "fillOpacity": 6,
+            "gradientMode": "opacity",
+            "showPoints": "never",
+            "pointSize": 5,
+            "spanNulls": true,
+            "axisPlacement": "auto",
+            "axisBorderShow": false,
+            "thresholdsStyle": {
+              "mode": "line"
+            }
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "H₂S ppm"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#ef4444"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "CO ppm"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#f59e0b"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "CH₄ %LEL"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#a78bfa"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 34,
+      "type": "stat",
+      "title": "O₂",
+      "description": "",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "aura-timescale"
+      },
+      "gridPos": {
+        "x": 16,
+        "y": 58,
+        "w": 4,
+        "h": 4
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "aura-timescale"
+          },
+          "refId": "A",
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT (compound->>'o2_vol')::float AS \"O₂\"\nFROM attributes\nWHERE entityid = 'urn:ngsi-ld:AirQualityObserved:$robot' AND id LIKE '%/reading'\nORDER BY ts DESC LIMIT 1"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "decimals": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#ef4444",
+                "value": null
+              },
+              {
+                "color": "#22c55e",
+                "value": 19.5
+              },
+              {
+                "color": "#ef4444",
+                "value": 23.5
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/.*/",
+          "values": false
+        },
+        "colorMode": "background_solid",
+        "graphMode": "area",
+        "justifyMode": "center",
+        "textMode": "value",
+        "orientation": "auto",
+        "wideLayout": true,
+        "showPercentChange": false
+      }
+    },
+    {
+      "id": 35,
+      "type": "stat",
+      "title": "Thermal hotspot",
+      "description": "",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "aura-timescale"
+      },
+      "gridPos": {
+        "x": 20,
+        "y": 58,
+        "w": 4,
+        "h": 4
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "aura-timescale"
+          },
+          "refId": "A",
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT (compound->>'thermal_max')::float AS \"°C\"\nFROM attributes\nWHERE entityid = 'urn:ngsi-ld:AirQualityObserved:$robot' AND id LIKE '%/reading'\nORDER BY ts DESC LIMIT 1"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "celsius",
+          "decimals": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#22c55e",
+                "value": null
+              },
+              {
+                "color": "#f59e0b",
+                "value": 60
+              },
+              {
+                "color": "#ef4444",
+                "value": 90
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/.*/",
+          "values": false
+        },
+        "colorMode": "background_solid",
+        "graphMode": "area",
+        "justifyMode": "center",
+        "textMode": "value",
+        "orientation": "auto",
+        "wideLayout": true,
+        "showPercentChange": false
+      }
+    },
+    {
+      "id": 36,
+      "type": "stat",
+      "title": "Ambient",
+      "description": "",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "aura-timescale"
+      },
+      "gridPos": {
+        "x": 16,
+        "y": 62,
+        "w": 4,
+        "h": 4
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "aura-timescale"
+          },
+          "refId": "A",
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT (compound->>'temperature')::float AS \"°C\"\nFROM attributes\nWHERE entityid = 'urn:ngsi-ld:AirQualityObserved:$robot' AND id LIKE '%/reading'\nORDER BY ts DESC LIMIT 1"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "celsius",
+          "decimals": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#38bdf8",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/.*/",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "center",
+        "textMode": "value",
+        "orientation": "auto",
+        "wideLayout": true,
+        "showPercentChange": false
+      }
+    },
+    {
+      "id": 37,
+      "type": "stat",
+      "title": "Humidity",
+      "description": "",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "aura-timescale"
+      },
+      "gridPos": {
+        "x": 20,
+        "y": 62,
+        "w": 4,
+        "h": 4
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "aura-timescale"
+          },
+          "refId": "A",
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT (compound->>'relative_humidity')::float AS \"%\"\nFROM attributes\nWHERE entityid = 'urn:ngsi-ld:AirQualityObserved:$robot' AND id LIKE '%/reading'\nORDER BY ts DESC LIMIT 1"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "decimals": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#60a5fa",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/.*/",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "center",
+        "textMode": "value",
+        "orientation": "auto",
+        "wideLayout": true,
+        "showPercentChange": false
+      }
+    }
+  ]
+}

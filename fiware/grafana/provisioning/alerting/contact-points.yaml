@@ -1,0 +1,25 @@
+apiVersion: 1
+
+# Grafana-managed alert notifications go to aura-monitor, which logs them next to its own
+# NGSI-LD Alert entities. Add a Telegram/e-mail receiver here for real deployments
+# (the ARISE PoC example uses Telegram).
+contactPoints:
+  - orgId: 1
+    name: aura-monitor
+    receivers:
+      - uid: aura-monitor-webhook
+        type: webhook
+        settings:
+          url: http://aura-monitor:8090/api/grafana-webhook
+          httpMethod: POST
+          title: '{{ template "default.title" . }}'
+          message: '{{ template "default.message" . }}'
+        disableResolveMessage: false
+
+policies:
+  - orgId: 1
+    receiver: aura-monitor
+    group_by: ["grafana_folder", "alertname"]
+    group_wait: 10s
+    group_interval: 1m
+    repeat_interval: 1h

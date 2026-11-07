@@ -1,0 +1,1669 @@
+{
+  "uid": "aura-historian",
+  "title": "AURA · Historian & analytics",
+  "description": "Cross-mission KPIs (MissionReport), acoustic-condition matrix, calibration and per-operator analytics from the TROE historian and the NGSI-LD temporal API.",
+  "tags": [
+    "aura",
+    "arise",
+    "fiware",
+    "historian"
+  ],
+  "timezone": "browser",
+  "editable": false,
+  "graphTooltip": 1,
+  "liveNow": false,
+  "refresh": "30s",
+  "schemaVersion": 39,
+  "version": 1,
+  "style": "dark",
+  "time": {
+    "from": "now-30d",
+    "to": "now"
+  },
+  "timepicker": {
+    "refresh_intervals": [
+      "5s",
+      "10s",
+      "30s",
+      "1m",
+      "5m",
+      "15m"
+    ]
+  },
+  "fiscalYearStartMonth": 0,
+  "links": [
+    {
+      "title": "AURA dashboards",
+      "type": "dashboards",
+      "tags": [
+        "aura"
+      ],
+      "asDropdown": false,
+      "includeVars": true,
+      "keepTime": true,
+      "icon": "external link",
+      "targetBlank": false
+    },
+    {
+      "title": "AURA dashboard (WireCloud)",
+      "type": "link",
+      "url": "http://localhost:8000/admin/aura",
+      "icon": "external link",
+      "targetBlank": true,
+      "tooltip": "AURA HRI condition-monitoring widgets in FIWARE WireCloud"
+    },
+    {
+      "title": "Orion-LD",
+      "type": "link",
+      "url": "http://localhost:1026/ngsi-ld/v1/entities?local=true&limit=100",
+      "icon": "info",
+      "targetBlank": true,
+      "tooltip": "NGSI-LD entities in the context broker"
+    }
+  ],
+  "templating": {
+    "list": [
+      {
+        "name": "robot",
+        "label": "Robot",
+        "type": "custom",
+        "query": "artaban-01",
+        "current": {
+          "selected": true,
+          "text": "artaban-01",
+          "value": "artaban-01"
+        },
+        "options": [
+          {
+            "selected": true,
+            "text": "artaban-01",
+            "value": "artaban-01"
+          }
+        ],
+        "hide": 0,
+        "includeAll": false,
+        "multi": false,
+        "description": "Robot id suffix used in NGSI-LD entity ids (urn:ngsi-ld:Robot:<robot>)"
+      }
+    ]
+  },
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "text",
+      "title": "",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 3
+      },
+      "options": {
+        "mode": "markdown",
+        "content": "### Artaban · AURA — Historian & analytics\n`ROS 2 / Vulcanexus` → `Orion-LD (NGSI-LD, DDS bridge)` → `TROE · TimescaleDB` → `Mintaka` → **Grafana** &nbsp;·&nbsp; Powered by FIWARE · ARISE all-in-one middleware &nbsp;·&nbsp; [Open AURA dashboard (WireCloud) ↗](http://localhost:8000/admin/aura)"
+      },
+      "transparent": true
+    },
+    {
+      "id": 2,
+      "type": "row",
+      "title": "Fleet of missions (MissionReport entities)",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 3,
+        "w": 24,
+        "h": 1
+      },
+      "panels": []
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Missions",
+      "description": "",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "aura-timescale"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 4,
+        "w": 4,
+        "h": 4
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "aura-timescale"
+          },
+          "refId": "A",
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "WITH r AS (\n  SELECT DISTINCT ON (entityid, id) entityid, split_part(id, '/', -1) AS attr, number, text, boolean,\n         coalesce(observedat, ts) AS t\n  FROM attributes\n  WHERE entityid LIKE 'urn:ngsi-ld:MissionReport:%'\n  ORDER BY entityid, id, ts DESC\n)\nSELECT count(*) AS \"Missions\", avg(sr) AS \"Avg success\", avg(fa) AS \"Avg false activation\",\n  avg(lat) AS \"Avg latency\", avg(loops) AS \"Loops / 10 cmds\", sum(alerts) AS \"Alerts\"\nFROM (SELECT entityid, max(t) AS t,\n  max(number) FILTER (WHERE attr = 'commandSuccessRate') AS \"sr\", max(number) FILTER (WHERE attr = 'falseActivationRate') AS \"fa\",\n  max(number) FILTER (WHERE attr = 'meanLatency') AS \"lat\", max(number) FILTER (WHERE attr = 'confirmationLoopRate') AS \"loops\", max(number) FILTER (WHERE attr = 'alertsCount') AS \"alerts\"\n  FROM r GROUP BY entityid) m\nWHERE $__timeFilter(t)"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "decimals": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#60a5fa",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/^Missions$/",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value",
+        "orientation": "auto",
+        "wideLayout": true,
+        "showPercentChange": false
+      }
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Avg success",
+      "description": "",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "aura-timescale"
+      },
+      "gridPos": {
+        "x": 4,
+        "y": 4,
+        "w": 4,
+        "h": 4
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "aura-timescale"
+          },
+          "refId": "A",
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "WITH r AS (\n  SELECT DISTINCT ON (entityid, id) entityid, split_part(id, '/', -1) AS attr, number, text, boolean,\n         coalesce(observedat, ts) AS t\n  FROM attributes\n  WHERE entityid LIKE 'urn:ngsi-ld:MissionReport:%'\n  ORDER BY entityid, id, ts DESC\n)\nSELECT count(*) AS \"Missions\", avg(sr) AS \"Avg success\", avg(fa) AS \"Avg false activation\",\n  avg(lat) AS \"Avg latency\", avg(loops) AS \"Loops / 10 cmds\", sum(alerts) AS \"Alerts\"\nFROM (SELECT entityid, max(t) AS t,\n  max(number) FILTER (WHERE attr = 'commandSuccessRate') AS \"sr\", max(number) FILTER (WHERE attr = 'falseActivationRate') AS \"fa\",\n  max(number) FILTER (WHERE attr = 'meanLatency') AS \"lat\", max(number) FILTER (WHERE attr = 'confirmationLoopRate') AS \"loops\", max(number) FILTER (WHERE attr = 'alertsCount') AS \"alerts\"\n  FROM r GROUP BY entityid) m\nWHERE $__timeFilter(t)"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "decimals": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#ef4444",
+                "value": null
+              },
+              {
+                "color": "#f59e0b",
+                "value": 80
+              },
+              {
+                "color": "#22c55e",
+                "value": 90
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/^Avg success$/",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value",
+        "orientation": "auto",
+        "wideLayout": true,
+        "showPercentChange": false
+      }
+    },
+    {
+      "id": 5,
+      "type": "stat",
+      "title": "Avg false activation",
+      "description": "",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "aura-timescale"
+      },
+      "gridPos": {
+        "x": 8,
+        "y": 4,
+        "w": 4,
+        "h": 4
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "aura-timescale"
+          },
+          "refId": "A",
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "WITH r AS (\n  SELECT DISTINCT ON (entityid, id) entityid, split_part(id, '/', -1) AS attr, number, text, boolean,\n         coalesce(observedat, ts) AS t\n  FROM attributes\n  WHERE entityid LIKE 'urn:ngsi-ld:MissionReport:%'\n  ORDER BY entityid, id, ts DESC\n)\nSELECT count(*) AS \"Missions\", avg(sr) AS \"Avg success\", avg(fa) AS \"Avg false activation\",\n  avg(lat) AS \"Avg latency\", avg(loops) AS \"Loops / 10 cmds\", sum(alerts) AS \"Alerts\"\nFROM (SELECT entityid, max(t) AS t,\n  max(number) FILTER (WHERE attr = 'commandSuccessRate') AS \"sr\", max(number) FILTER (WHERE attr = 'falseActivationRate') AS \"fa\",\n  max(number) FILTER (WHERE attr = 'meanLatency') AS \"lat\", max(number) FILTER (WHERE attr = 'confirmationLoopRate') AS \"loops\", max(number) FILTER (WHERE attr = 'alertsCount') AS \"alerts\"\n  FROM r GROUP BY entityid) m\nWHERE $__timeFilter(t)"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "decimals": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#22c55e",
+                "value": null
+              },
+              {
+                "color": "#f59e0b",
+                "value": 3
+              },
+              {
+                "color": "#ef4444",
+                "value": 5
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/^Avg false activation$/",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value",
+        "orientation": "auto",
+        "wideLayout": true,
+        "showPercentChange": false
+      }
+    },
+    {
+      "id": 6,
+      "type": "stat",
+      "title": "Avg latency",
+      "description": "",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "aura-timescale"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 4,
+        "w": 4,
+        "h": 4
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "aura-timescale"
+          },
+          "refId": "A",
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "WITH r AS (\n  SELECT DISTINCT ON (entityid, id) entityid, split_part(id, '/', -1) AS attr, number, text, boolean,\n         coalesce(observedat, ts) AS t\n  FROM attributes\n  WHERE entityid LIKE 'urn:ngsi-ld:MissionReport:%'\n  ORDER BY entityid, id, ts DESC\n)\nSELECT count(*) AS \"Missions\", avg(sr) AS \"Avg success\", avg(fa) AS \"Avg false activation\",\n  avg(lat) AS \"Avg latency\", avg(loops) AS \"Loops / 10 cmds\", sum(alerts) AS \"Alerts\"\nFROM (SELECT entityid, max(t) AS t,\n  max(number) FILTER (WHERE attr = 'commandSuccessRate') AS \"sr\", max(number) FILTER (WHERE attr = 'falseActivationRate') AS \"fa\",\n  max(number) FILTER (WHERE attr = 'meanLatency') AS \"lat\", max(number) FILTER (WHERE attr = 'confirmationLoopRate') AS \"loops\", max(number) FILTER (WHERE attr = 'alertsCount') AS \"alerts\"\n  FROM r GROUP BY entityid) m\nWHERE $__timeFilter(t)"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "decimals": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#22c55e",
+                "value": null
+              },
+              {
+                "color": "#f59e0b",
+                "value": 450
+              },
+              {
+                "color": "#ef4444",
+                "value": 600
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/^Avg latency$/",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value",
+        "orientation": "auto",
+        "wideLayout": true,
+        "showPercentChange": false
+      }
+    },
+    {
+      "id": 7,
+      "type": "stat",
+      "title": "Loops / 10 cmds",
+      "description": "",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "aura-timescale"
+      },
+      "gridPos": {
+        "x": 16,
+        "y": 4,
+        "w": 4,
+        "h": 4
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "aura-timescale"
+          },
+          "refId": "A",
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "WITH r AS (\n  SELECT DISTINCT ON (entityid, id) entityid, split_part(id, '/', -1) AS attr, number, text, boolean,\n         coalesce(observedat, ts) AS t\n  FROM attributes\n  WHERE entityid LIKE 'urn:ngsi-ld:MissionReport:%'\n  ORDER BY entityid, id, ts DESC\n)\nSELECT count(*) AS \"Missions\", avg(sr) AS \"Avg success\", avg(fa) AS \"Avg false activation\",\n  avg(lat) AS \"Avg latency\", avg(loops) AS \"Loops / 10 cmds\", sum(alerts) AS \"Alerts\"\nFROM (SELECT entityid, max(t) AS t,\n  max(number) FILTER (WHERE attr = 'commandSuccessRate') AS \"sr\", max(number) FILTER (WHERE attr = 'falseActivationRate') AS \"fa\",\n  max(number) FILTER (WHERE attr = 'meanLatency') AS \"lat\", max(number) FILTER (WHERE attr = 'confirmationLoopRate') AS \"loops\", max(number) FILTER (WHERE attr = 'alertsCount') AS \"alerts\"\n  FROM r GROUP BY entityid) m\nWHERE $__timeFilter(t)"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "decimals": 2,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#22c55e",
+                "value": null
+              },
+              {
+                "color": "#f59e0b",
+                "value": 1.5
+              },
+              {
+                "color": "#ef4444",
+                "value": 2.0
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/^Loops / 10 cmds$/",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value",
+        "orientation": "auto",
+        "wideLayout": true,
+        "showPercentChange": false
+      }
+    },
+    {
+      "id": 8,
+      "type": "stat",
+      "title": "Alerts",
+      "description": "",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "aura-timescale"
+      },
+      "gridPos": {
+        "x": 20,
+        "y": 4,
+        "w": 4,
+        "h": 4
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "aura-timescale"
+          },
+          "refId": "A",
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "WITH r AS (\n  SELECT DISTINCT ON (entityid, id) entityid, split_part(id, '/', -1) AS attr, number, text, boolean,\n         coalesce(observedat, ts) AS t\n  FROM attributes\n  WHERE entityid LIKE 'urn:ngsi-ld:MissionReport:%'\n  ORDER BY entityid, id, ts DESC\n)\nSELECT count(*) AS \"Missions\", avg(sr) AS \"Avg success\", avg(fa) AS \"Avg false activation\",\n  avg(lat) AS \"Avg latency\", avg(loops) AS \"Loops / 10 cmds\", sum(alerts) AS \"Alerts\"\nFROM (SELECT entityid, max(t) AS t,\n  max(number) FILTER (WHERE attr = 'commandSuccessRate') AS \"sr\", max(number) FILTER (WHERE attr = 'falseActivationRate') AS \"fa\",\n  max(number) FILTER (WHERE attr = 'meanLatency') AS \"lat\", max(number) FILTER (WHERE attr = 'confirmationLoopRate') AS \"loops\", max(number) FILTER (WHERE attr = 'alertsCount') AS \"alerts\"\n  FROM r GROUP BY entityid) m\nWHERE $__timeFilter(t)"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "decimals": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#64748b",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/^Alerts$/",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value",
+        "orientation": "auto",
+        "wideLayout": true,
+        "showPercentChange": false
+      }
+    },
+    {
+      "id": 9,
+      "type": "barchart",
+      "title": "Command success rate per mission",
+      "description": "Trend across sprints is the evidence package required by ARISE (PoC → TRL 6–7)",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "aura-timescale"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 8,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "aura-timescale"
+          },
+          "refId": "A",
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "WITH r AS (\n  SELECT DISTINCT ON (entityid, id) entityid, split_part(id, '/', -1) AS attr, number, text, boolean,\n         coalesce(observedat, ts) AS t\n  FROM attributes\n  WHERE entityid LIKE 'urn:ngsi-ld:MissionReport:%'\n  ORDER BY entityid, id, ts DESC\n)\nSELECT split_part(entityid, ':', 4) AS \"Mission\",\n  max(number) FILTER (WHERE attr = 'commandSuccessRate') AS \"Success %\", max(number) FILTER (WHERE attr = 'rejectionRate') AS \"Rejection %\",\n  max(number) FILTER (WHERE attr = 'falseActivationRate') AS \"False activation %\", max(number) FILTER (WHERE attr = 'confirmationLoopRate') AS \"Loops / 10\",\n  max(number) FILTER (WHERE attr = 'meanLatency') AS \"Mean latency\", max(number) FILTER (WHERE attr = 'p95Latency') AS \"p95 latency\",\n  max(number) FILTER (WHERE attr = 'timeToSafeStop') AS \"Time-to-safe-stop\", max(t) AS t\nFROM r WHERE entityid IN (SELECT entityid FROM r GROUP BY entityid HAVING max(t) >= $__timeFrom())\nGROUP BY entityid ORDER BY t"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#ef4444",
+                "value": null
+              },
+              {
+                "color": "#f59e0b",
+                "value": 80
+              },
+              {
+                "color": "#22c55e",
+                "value": 90
+              }
+            ]
+          },
+          "min": 50,
+          "max": 100,
+          "custom": {
+            "fillOpacity": 85,
+            "gradientMode": "hue",
+            "lineWidth": 0
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Success %"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#22c55e"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "xField": "Mission",
+        "orientation": "vertical",
+        "barWidth": 0.8,
+        "groupWidth": 0.75,
+        "showValue": "never",
+        "stacking": "none",
+        "xTickLabelRotation": -45,
+        "xTickLabelSpacing": 0,
+        "legend": {
+          "showLegend": true,
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "t": true,
+              "Rejection %": true,
+              "False activation %": true,
+              "Loops / 10": true,
+              "Mean latency": true,
+              "p95 latency": true,
+              "Time-to-safe-stop": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "type": "barchart",
+      "title": "Rejection · false activation per mission",
+      "description": "",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "aura-timescale"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 8,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "aura-timescale"
+          },
+          "refId": "A",
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "WITH r AS (\n  SELECT DISTINCT ON (entityid, id) entityid, split_part(id, '/', -1) AS attr, number, text, boolean,\n         coalesce(observedat, ts) AS t\n  FROM attributes\n  WHERE entityid LIKE 'urn:ngsi-ld:MissionReport:%'\n  ORDER BY entityid, id, ts DESC\n)\nSELECT split_part(entityid, ':', 4) AS \"Mission\",\n  max(number) FILTER (WHERE attr = 'commandSuccessRate') AS \"Success %\", max(number) FILTER (WHERE attr = 'rejectionRate') AS \"Rejection %\",\n  max(number) FILTER (WHERE attr = 'falseActivationRate') AS \"False activation %\", max(number) FILTER (WHERE attr = 'confirmationLoopRate') AS \"Loops / 10\",\n  max(number) FILTER (WHERE attr = 'meanLatency') AS \"Mean latency\", max(number) FILTER (WHERE attr = 'p95Latency') AS \"p95 latency\",\n  max(number) FILTER (WHERE attr = 'timeToSafeStop') AS \"Time-to-safe-stop\", max(t) AS t\nFROM r WHERE entityid IN (SELECT entityid FROM r GROUP BY entityid HAVING max(t) >= $__timeFrom())\nGROUP BY entityid ORDER BY t"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "custom": {
+            "fillOpacity": 85,
+            "gradientMode": "hue",
+            "lineWidth": 0
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Rejection %"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#ef4444"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "False activation %"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#fb923c"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "xField": "Mission",
+        "orientation": "vertical",
+        "barWidth": 0.8,
+        "groupWidth": 0.75,
+        "showValue": "never",
+        "stacking": "none",
+        "xTickLabelRotation": -45,
+        "xTickLabelSpacing": 0,
+        "legend": {
+          "showLegend": true,
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "t": true,
+              "Success %": true,
+              "Loops / 10": true,
+              "Mean latency": true,
+              "p95 latency": true,
+              "Time-to-safe-stop": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "type": "barchart",
+      "title": "Confirmation loops per 10 commands",
+      "description": "",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "aura-timescale"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 16,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "aura-timescale"
+          },
+          "refId": "A",
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "WITH r AS (\n  SELECT DISTINCT ON (entityid, id) entityid, split_part(id, '/', -1) AS attr, number, text, boolean,\n         coalesce(observedat, ts) AS t\n  FROM attributes\n  WHERE entityid LIKE 'urn:ngsi-ld:MissionReport:%'\n  ORDER BY entityid, id, ts DESC\n)\nSELECT split_part(entityid, ':', 4) AS \"Mission\",\n  max(number) FILTER (WHERE attr = 'commandSuccessRate') AS \"Success %\", max(number) FILTER (WHERE attr = 'rejectionRate') AS \"Rejection %\",\n  max(number) FILTER (WHERE attr = 'falseActivationRate') AS \"False activation %\", max(number) FILTER (WHERE attr = 'confirmationLoopRate') AS \"Loops / 10\",\n  max(number) FILTER (WHERE attr = 'meanLatency') AS \"Mean latency\", max(number) FILTER (WHERE attr = 'p95Latency') AS \"p95 latency\",\n  max(number) FILTER (WHERE attr = 'timeToSafeStop') AS \"Time-to-safe-stop\", max(t) AS t\nFROM r WHERE entityid IN (SELECT entityid FROM r GROUP BY entityid HAVING max(t) >= $__timeFrom())\nGROUP BY entityid ORDER BY t"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "min": 0,
+          "custom": {
+            "fillOpacity": 85,
+            "gradientMode": "hue",
+            "lineWidth": 0
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Loops / 10"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#f59e0b"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "xField": "Mission",
+        "orientation": "vertical",
+        "barWidth": 0.8,
+        "groupWidth": 0.75,
+        "showValue": "never",
+        "stacking": "none",
+        "xTickLabelRotation": -45,
+        "xTickLabelSpacing": 0,
+        "legend": {
+          "showLegend": true,
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "t": true,
+              "Success %": true,
+              "Rejection %": true,
+              "False activation %": true,
+              "Mean latency": true,
+              "p95 latency": true,
+              "Time-to-safe-stop": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "type": "barchart",
+      "title": "Latency · time-to-safe-stop per mission",
+      "description": "",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "aura-timescale"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 16,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "aura-timescale"
+          },
+          "refId": "A",
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "WITH r AS (\n  SELECT DISTINCT ON (entityid, id) entityid, split_part(id, '/', -1) AS attr, number, text, boolean,\n         coalesce(observedat, ts) AS t\n  FROM attributes\n  WHERE entityid LIKE 'urn:ngsi-ld:MissionReport:%'\n  ORDER BY entityid, id, ts DESC\n)\nSELECT split_part(entityid, ':', 4) AS \"Mission\",\n  max(number) FILTER (WHERE attr = 'commandSuccessRate') AS \"Success %\", max(number) FILTER (WHERE attr = 'rejectionRate') AS \"Rejection %\",\n  max(number) FILTER (WHERE attr = 'falseActivationRate') AS \"False activation %\", max(number) FILTER (WHERE attr = 'confirmationLoopRate') AS \"Loops / 10\",\n  max(number) FILTER (WHERE attr = 'meanLatency') AS \"Mean latency\", max(number) FILTER (WHERE attr = 'p95Latency') AS \"p95 latency\",\n  max(number) FILTER (WHERE attr = 'timeToSafeStop') AS \"Time-to-safe-stop\", max(t) AS t\nFROM r WHERE entityid IN (SELECT entityid FROM r GROUP BY entityid HAVING max(t) >= $__timeFrom())\nGROUP BY entityid ORDER BY t"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "min": 0,
+          "custom": {
+            "fillOpacity": 85,
+            "gradientMode": "hue",
+            "lineWidth": 0
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Mean latency"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#38bdf8"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "p95 latency"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#a78bfa"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Time-to-safe-stop"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#f472b6"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "xField": "Mission",
+        "orientation": "vertical",
+        "barWidth": 0.8,
+        "groupWidth": 0.75,
+        "showValue": "never",
+        "stacking": "none",
+        "xTickLabelRotation": -45,
+        "xTickLabelSpacing": 0,
+        "legend": {
+          "showLegend": true,
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "t": true,
+              "Success %": true,
+              "Rejection %": true,
+              "False activation %": true,
+              "Loops / 10": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 13,
+      "type": "row",
+      "title": "Acoustic performance (IntentEvent history in range)",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 24,
+        "w": 24,
+        "h": 1
+      },
+      "panels": []
+    },
+    {
+      "id": 14,
+      "type": "table",
+      "title": "Performance by acoustic condition",
+      "description": "Noise + mask triggers fallback to gesture + thermal cues; watch the confirmation-loop rate.",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "aura-timescale"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 25,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "aura-timescale"
+          },
+          "refId": "A",
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT compound->>'acoustic_condition' AS \"Condition\", count(*) AS \"Commands\",\n  100 * avg(CASE WHEN compound->>'outcome' IN ('correct','recovered') THEN 1.0 ELSE 0.0 END) AS \"Success\",\n  avg((compound->>'confidence')::float) AS \"Mean confidence\",\n  10 * avg(CASE WHEN (compound->>'decision')::int = 1 THEN 1.0 ELSE 0.0 END) AS \"Loops / 10\",\n  avg((compound->>'latency_ms')::float) AS \"Mean latency\"\nFROM attributes\nWHERE entityid = 'urn:ngsi-ld:HRIEvent:intent' AND id LIKE '%/intentEvent' AND coalesce(observedat, ts) BETWEEN $__timeFrom() AND $__timeTo() AND (compound->>'decision')::int <> 3\nGROUP BY 1 ORDER BY 3 DESC"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            }
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Condition"
+            },
+            "properties": [
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "clean": {
+                        "text": "clean",
+                        "color": "#22c55e",
+                        "index": 0
+                      },
+                      "noise": {
+                        "text": "noise > 75 dB",
+                        "color": "#f59e0b",
+                        "index": 1
+                      },
+                      "mask": {
+                        "text": "full-face mask",
+                        "color": "#fb923c",
+                        "index": 2
+                      },
+                      "noise+mask": {
+                        "text": "noise + mask",
+                        "color": "#ef4444",
+                        "index": 3
+                      }
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text",
+                  "mode": "basic"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Success"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percent"
+              },
+              {
+                "id": "min",
+                "value": 0
+              },
+              {
+                "id": "max",
+                "value": 100
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "#ef4444",
+                      "value": null
+                    },
+                    {
+                      "color": "#f59e0b",
+                      "value": 80
+                    },
+                    {
+                      "color": "#22c55e",
+                      "value": 90
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "gauge",
+                  "mode": "lcd",
+                  "valueDisplayMode": "text"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Mean confidence"
+            },
+            "properties": [
+              {
+                "id": "decimals",
+                "value": 2
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "#ef4444",
+                      "value": null
+                    },
+                    {
+                      "color": "#f59e0b",
+                      "value": 0.7
+                    },
+                    {
+                      "color": "#22c55e",
+                      "value": 0.8
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Loops / 10"
+            },
+            "properties": [
+              {
+                "id": "decimals",
+                "value": 2
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "#22c55e",
+                      "value": null
+                    },
+                    {
+                      "color": "#f59e0b",
+                      "value": 1.5
+                    },
+                    {
+                      "color": "#ef4444",
+                      "value": 2.0
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Mean latency"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "ms"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "md",
+        "footer": {
+          "show": false
+        }
+      }
+    },
+    {
+      "id": 15,
+      "type": "barchart",
+      "title": "Calibration · reliability diagram",
+      "description": "Confidence calibration quality: bars match when confidence predicts errors well (gap = ECE contribution).",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "aura-timescale"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 25,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "aura-timescale"
+          },
+          "refId": "A",
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT to_char(width_bucket((compound->>'confidence')::float, 0, 1, 10) / 10.0 - 0.05, 'FM0.00') AS \"Bin\",\n  avg((compound->>'confidence')::float) AS \"Mean confidence\",\n  avg(CASE WHEN compound->>'outcome' = 'correct' THEN 1.0 ELSE 0.0 END) AS \"Observed accuracy\"\nFROM attributes\nWHERE entityid = 'urn:ngsi-ld:HRIEvent:intent' AND id LIKE '%/intentEvent' AND coalesce(observedat, ts) BETWEEN $__timeFrom() AND $__timeTo() AND (compound->>'decision')::int <> 3\nGROUP BY 1 ORDER BY 1"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1,
+          "custom": {
+            "fillOpacity": 80,
+            "lineWidth": 0,
+            "gradientMode": "none"
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Mean confidence"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#64748b"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Observed accuracy"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#38bdf8"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "xField": "Bin",
+        "orientation": "vertical",
+        "barWidth": 0.85,
+        "groupWidth": 0.8,
+        "showValue": "never",
+        "stacking": "none",
+        "legend": {
+          "showLegend": true,
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 16,
+      "type": "barchart",
+      "title": "Success rate per intent",
+      "description": "",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "aura-timescale"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 33,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "aura-timescale"
+          },
+          "refId": "A",
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT compound->>'intent' AS \"Intent\", 100 * avg(CASE WHEN compound->>'outcome' IN ('correct','recovered') THEN 1.0 ELSE 0.0 END) AS \"Success %\",\n  100 * avg(CASE WHEN (compound->>'decision')::int = 1 THEN 1.0 ELSE 0.0 END) AS \"Confirmed %\"\nFROM attributes\nWHERE entityid = 'urn:ngsi-ld:HRIEvent:intent' AND id LIKE '%/intentEvent' AND coalesce(observedat, ts) BETWEEN $__timeFrom() AND $__timeTo() AND (compound->>'decision')::int <> 3\nGROUP BY 1 ORDER BY 2 DESC"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "custom": {
+            "fillOpacity": 85,
+            "lineWidth": 0,
+            "gradientMode": "hue"
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Success %"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#22c55e"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Confirmed %"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#f59e0b"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "xField": "Intent",
+        "orientation": "horizontal",
+        "barWidth": 0.8,
+        "groupWidth": 0.75,
+        "showValue": "auto",
+        "stacking": "none",
+        "legend": {
+          "showLegend": true,
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 17,
+      "type": "table",
+      "title": "Per-operator profile (inclusiveness: who struggles with what)",
+      "description": "",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "aura-timescale"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 33,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "aura-timescale"
+          },
+          "refId": "A",
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT compound->>'operator_id' AS \"Operator\", count(*) AS \"Commands\",\n  100 * avg(CASE WHEN compound->>'outcome' IN ('correct','recovered') THEN 1.0 ELSE 0.0 END) AS \"Success\",\n  100 * avg(CASE WHEN compound->>'outcome' = 'false_activation' THEN 1.0 ELSE 0.0 END) AS \"False act.\",\n  avg((compound->>'confidence')::float) AS \"Mean confidence\",\n  avg((compound->>'latency_ms')::float) AS \"Mean latency\",\n  mode() WITHIN GROUP (ORDER BY compound->>'modality') AS \"Preferred modality\"\nFROM attributes\nWHERE entityid = 'urn:ngsi-ld:HRIEvent:intent' AND id LIKE '%/intentEvent' AND coalesce(observedat, ts) BETWEEN $__timeFrom() AND $__timeTo() AND (compound->>'decision')::int <> 3\nGROUP BY 1 ORDER BY 1"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            }
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Success"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percent"
+              },
+              {
+                "id": "min",
+                "value": 0
+              },
+              {
+                "id": "max",
+                "value": 100
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "#ef4444",
+                      "value": null
+                    },
+                    {
+                      "color": "#f59e0b",
+                      "value": 80
+                    },
+                    {
+                      "color": "#22c55e",
+                      "value": 90
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "gauge",
+                  "mode": "lcd",
+                  "valueDisplayMode": "text"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "False act."
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percent"
+              },
+              {
+                "id": "decimals",
+                "value": 1
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "#22c55e",
+                      "value": null
+                    },
+                    {
+                      "color": "#f59e0b",
+                      "value": 3
+                    },
+                    {
+                      "color": "#ef4444",
+                      "value": 5
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Mean confidence"
+            },
+            "properties": [
+              {
+                "id": "decimals",
+                "value": 2
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Mean latency"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "ms"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "md",
+        "footer": {
+          "show": false
+        }
+      }
+    },
+    {
+      "id": 18,
+      "type": "row",
+      "title": "NGSI-LD temporal API (Mintaka)",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 41,
+        "w": 24,
+        "h": 1
+      },
+      "panels": []
+    },
+    {
+      "id": 19,
+      "type": "timeseries",
+      "title": "Command success via Mintaka temporal API",
+      "description": "HRISessionKPI.commandSuccessRate (rolling 15 min) fetched through the standard NGSI-LD temporal API (GET /temporal/entities/{id}) served by FIWARE Mintaka — the interoperable path for external IT/OT systems. Entities created by Orion-LD 1.10's DDS bridge have no TROE entity record, so Mintaka cannot serve them yet; the SQL panels read their history directly.",
+      "datasource": {
+        "type": "yesoreyeram-infinity-datasource",
+        "uid": "aura-mintaka"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 42,
+        "w": 24,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "aura-mintaka"
+          },
+          "refId": "A",
+          "type": "json",
+          "source": "url",
+          "parser": "backend",
+          "format": "timeseries",
+          "url": "http://mintaka:8080/temporal/entities/urn:ngsi-ld:HRISessionKPI:$robot?attrs=commandSuccessRate&timerel=between&timeAt=${__from:date:iso}&endTimeAt=${__to:date:iso}&lastN=500",
+          "url_options": {
+            "method": "GET",
+            "headers": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ]
+          },
+          "root_selector": "commandSuccessRate",
+          "columns": [
+            {
+              "selector": "observedAt",
+              "text": "time",
+              "type": "timestamp"
+            },
+            {
+              "selector": "value",
+              "text": "Command success (Mintaka)",
+              "type": "number"
+            }
+          ]
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "fillOpacity": 20,
+            "gradientMode": "opacity",
+            "showPoints": "never",
+            "pointSize": 5,
+            "spanNulls": true,
+            "axisPlacement": "auto",
+            "axisBorderShow": false,
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#2dd4bf"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "showLegend": true,
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      }
+    }
+  ]
+}

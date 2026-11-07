@@ -1,0 +1,73 @@
+"""ROS 2 messages as Orion-LD's DDS bridge stores them → the flat values the KPI / alert logic uses.
+
+Each mapped topic is one NGSI-LD attribute whose value is the whole ROS message (fiware/orion/config-dds.json):
+Robot.battery (sensor_msgs/BatteryState), Robot.odometry (nav_msgs/Odometry), Robot.status
+(aura_interfaces/ArtabanStatus), AirQualityObserved.reading (aura_interfaces/EnvironmentReading),
+HRIEvent:intent.intentEvent (aura_interfaces/IntentEvent).
+"""
+
+from __future__ import annotations
+
+DECISIONS = {0: "ACCEPT", 1: "CONFIRM", 2: "REJECT", 3: "IGNORE"}
+CHARGING = 1  # sensor_msgs/BatteryState.POWER_SUPPLY_STATUS_CHARGING
+
+
+def _msg(v) -> dict:
+    return v if isinstance(v, dict) else {}
+
+
+def robot(entity: dict) -> dict:
+    """Simplified Robot entity → flat robot values (batteryLevel %, jointTemperatures, …)."""
+    b, s, o = _msg(entity.get("battery")), _msg(entity.get("status")), _msg(entity.get("odometry"))
+    out: dict = {"id": entity.get("id"), "_observedAt": entity.get("_observedAt")}
+    if b:
+        out.update({
+            "batteryLevel": round(100.0 * float(b.get("percentage", 0.0)), 2),
+            "batteryVoltage": b.get("voltage"), "batteryCurrent": b.get("current"),
+            "charging": b.get("power_supply_status") == CHARGING,
+        })
+    if s:
+        names, temps = s.get("joint_names") or [], s.get("joint_temperatures") or []
+        out.update({
+            "missionId": s.get("mission_id") or None, "missionState": s.get("mission_state"),
+            "operationMode": s.get("operation_mode"), "safetyState": s.get("safety_state"),
+            "eStop": bool(s.get("e_stop")), "odometry": s.get("odometry_m"),
+            "jointTemperatures": dict(zip(names, temps)), "maxJointTemperature": s.get("max_joint_temperature"),
+            "linkLatency": s.get("link_latency_ms"), "packetLoss": s.get("packet_loss"),
+        })
+    if o:
+        out["speed"] = _msg(_msg(o.get("twist")).get("twist")).get("linear", {}).get("x")
+    return out
+
+
+def environment(entity: dict) -> dict:
+    """Simplified AirQualityObserved entity (reading = EnvironmentReading) → flat environment values."""
+    r = _msg(entity.get("reading"))
+    return {
+        "id": entity.get("id"), "_observedAt": entity.get("_observedAt"),
+        "h2s": r.get("h2s_ppm"), "ch4": r.get("ch4_lel"), "co": r.get("co_ppm"), "o2": r.get("o2_vol"),
+        "thermalMax": r.get("thermal_max"), "LAeq": r.get("la_eq"), "LAmax": r.get("la_max"),
+        "noiseSource": r.get("noise_source"),
+    }
+
+
+def intent_event(msg: dict) -> dict | None:
+    """aura_interfaces/IntentEvent → the event dict used by kpi.compute (camelCase, decision as a word)."""
+    msg = _msg(msg)
+    if not msg.get("event_id"):
+        return None
+    ev = {
+        "eventId": msg["event_id"], "missionId": msg.get("mission_id"), "intent": msg.get("intent"),
+        "utterance": msg.get("utterance"), "gesture": msg.get("gesture") or None, "modality": msg.get("modality"),
+        "decision": DECISIONS.get(msg.get("decision"), "IGNORE"), "outcome": msg.get("outcome"),
+        "correct": bool(msg.get("correct")), "confidence": float(msg.get("confidence", 0.0)),
+        "threshold": float(msg.get("accept_threshold", 0.0)), "latencyMs": float(msg.get("latency_ms", 0.0)),
+        "noiseDb": float(msg.get("noise_db", 0.0)), "condition": msg.get("acoustic_condition"),
+        "operatorId": msg.get("operator_id"), "engaged": bool(msg.get("engaged")),
+        "safetyCritical": bool(msg.get("safety_critical")),
+    }
+    if msg.get("time_to_safe_stop_ms"):
+        ev["timeToSafeStopMs"] = float(msg["time_to_safe_stop_ms"])
+    if msg.get("recovery_time_s"):
+        ev["recoveryTimeS"] = float(msg["recovery_time_s"])
+    return ev
