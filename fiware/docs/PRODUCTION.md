@@ -72,6 +72,10 @@ The application is a Docker Compose application from this repository (`fiware/do
 Git by Coolify through the `sensifai-bot` GitHub app. Orion-LD downloads the NGSI-LD core `@context` from
 `uri.etsi.org` at runtime, so the server needs outbound internet access.
 
+- **Configuration is baked into images** (`deploy/*.Dockerfile`: Orion-LD DDS mapping, nginx routes, Grafana provisioning
+  and dashboards, the WireCloud init sources). Coolify does not copy repository files for relative bind mounts of a Git
+  compose application, it creates empty folders instead, so the compose file uses no bind mounts and a config change
+  needs a redeploy (rebuild).
 - **Widget change:** edit the widget, bump `VERSION` in `wirecloud/build.py`, `version=` in
   `wirecloud/operators/ngsild-source/config.xml` and `AURA_VERSION` in both compose files, redeploy with
   `AURA_RECREATE_WORKSPACE=1` once to rebuild the two dashboards from the new mashups.
