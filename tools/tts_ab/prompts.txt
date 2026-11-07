@@ -1,0 +1,40 @@
+Stopping now.
+Pausing. I will hold my position.
+Resuming the inspection mission.
+Command cancelled.
+Moving to the next inspection point.
+Coming to you. Please stay where you are.
+I am following you.
+Should I go to pump station three?
+Do you want me to inspect the heat exchanger on level two?
+Please confirm: inspect valve V-104 next to the north compressor.
+Shall I return to the charging dock?
+I heard go to the separator tank. Is that correct?
+Confirmed. Going to the gas detector at gate seven.
+Okay, I will not go there.
+Sorry, I did not understand. Please repeat the command.
+I am not sure what you meant. Did you say stop or start?
+Warning: methane level above twenty percent of the lower explosive limit.
+Battery at fifteen percent. I need to return to the dock soon.
+Obstacle ahead. Waiting for the path to clear.
+Thermal reading on motor M-12 is eighty four degrees Celsius.
+Inspection point six of eleven completed.
+The pressure gauge shows four point five bar.
+I cannot reach that area. The stairs are blocked.
+Emergency stop received. All motion is halted.
+Waiting for your confirmation. Show thumbs up to continue or thumbs down to cancel.
+Gesture received: thumbs up. Starting the task.
+Heading to the flare stack. Estimated arrival in two minutes.
+Leak suspected near flange F-3. Taking a closer image.
+The vibration on pump P-201 is higher than normal.
+Mission paused by operator at fourteen thirty.
+Do you want me to repeat the last reading?
+I lost the network connection. Continuing on the local plan.
+Arrived at the control room door.
+Should I take another photo of the corroded pipe?
+Hazard zone ahead. Please keep a distance of three meters.
+Low light detected. Turning on the inspection lamp.
+Route updated. Avoiding the wet floor near tank T-7.
+All twelve checkpoints are clear.
+Please speak louder. There is too much background noise.
+Shutting down the arm and returning to standby.

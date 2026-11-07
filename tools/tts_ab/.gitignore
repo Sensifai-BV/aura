@@ -1,0 +1,6 @@
+.venv/
+results/
+results_ros2/
+run_ab.log
+.venv-kitten/
+kitten_*.log
