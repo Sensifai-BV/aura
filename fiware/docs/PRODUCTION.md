@@ -58,7 +58,7 @@ Hard limits per container (`mem_limit`, `cpus`); steady-state use is well below 
 | --- | --- | --- | --- | --- | --- | --- |
 | timescale | 1280 MB | 1.0 | | orion, orion-sim | 512 MB each | 0.5 each |
 | mongo | 640 MB | 0.75 | | mintaka, mintaka-sim | 768 MB each | 0.5 each |
-| wirecloud | 640 MB | 1.0 | | aura-monitor, monitor-sim | 256 MB each | 0.25 each |
+| wirecloud | unlimited | unlimited | | aura-monitor, monitor-sim | 256 MB each | 0.25 each |
 | grafana | 512 MB | 0.5 | | artaban-sim | 384 MB | 0.3 |
 | wirecloud-nginx | 96 MB | 0.25 | | ngsiproxy | 160 MB | 0.25 |
 | wirecloud-init (one-shot) | 512 MB | 0.5 | | | | |
