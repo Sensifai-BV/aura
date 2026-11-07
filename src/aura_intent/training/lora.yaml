@@ -1,0 +1,28 @@
+# mlx_lm.lora settings for the AURA intent adapter (LFM2.5-1.2B-Instruct, bf16 base).
+model: LiquidAI/LFM2.5-1.2B-Instruct
+train: true
+fine_tune_type: lora
+data: data
+adapter_path: adapters
+mask_prompt: true          # loss on the JSON answer only
+num_layers: 16             # all LFM2 blocks
+batch_size: 8
+iters: 700
+learning_rate: 2.0e-4
+lr_schedule:
+  name: cosine_decay
+  warmup: 50
+  arguments: [2.0e-4, 700, 1.0e-5]
+steps_per_report: 25
+steps_per_eval: 175
+val_batches: 25
+save_every: 350
+max_seq_length: 384
+grad_checkpoint: false
+seed: 7
+lora_parameters:
+  keys: ["self_attn.q_proj", "self_attn.k_proj", "self_attn.v_proj", "self_attn.out_proj",
+         "conv.in_proj", "conv.out_proj", "feed_forward.w1", "feed_forward.w2", "feed_forward.w3"]
+  rank: 16
+  scale: 2.0
+  dropout: 0.05

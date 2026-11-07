@@ -1,0 +1,28 @@
+aura_intent:
+  ros__parameters:
+    # Relative paths are tried against the working directory first, then the package share.
+    model_path: model/aura-intent-lfm2.5-1.2b-q8_0.gguf
+    model_id: ""            # defaults to the model file stem
+    num_threads: 4
+    n_gpu_layers: 0         # -1 = offload all layers (Metal / CUDA build of llama-cpp-python)
+    transcript_topic: /aura_transcript
+    gesture_topic: /aura/gesture/intent
+    status_topic: /artaban/status
+    environment_topic: /artaban/environment
+    event_topic: /aura/intent/event
+    speaker_topic: /aura/speaker/say
+    diagnostics_topic: /aura/intent/status
+    # Model confidence = probability of the decoded intent label.
+    accept_threshold: 0.72
+    reject_threshold: 0.52
+    # always: every non-safety command asks "Did you say ...?" before executing
+    # uncertain: only commands below accept_threshold ask; never: execute directly
+    # stop / pause / cancel always execute at once.
+    confirm_mode: always
+    confirm_timeout_s: 8.0
+    max_transcript_chars: 300
+    operator_id: operator-01
+    mission_id: ""          # empty: follow ArtabanStatus.mission_id
+    session_prefix: S001
+    noise_threshold_db: 80.0
+    diagnostics_period_s: 1.0

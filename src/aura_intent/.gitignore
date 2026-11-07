@@ -1,0 +1,9 @@
+# Large weights: published on Hugging Face (sensifai/aura), see README
+model/*.gguf
+training/.venv/
+training/data/
+training/adapters/
+training/fused/
+training/*.log
+training/.llama.cpp/
+training/eval.json

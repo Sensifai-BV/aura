@@ -1,0 +1,4 @@
+# Install in the SAME Python interpreter used by your ROS2 distribution
+# (e.g. a --system-site-packages venv). LFM2 support needs llama.cpp >= b6000.
+# GPU offload (n_gpu_layers) needs a CUDA / Metal build: CMAKE_ARGS="-DGGML_CUDA=on" pip install ...
+llama-cpp-python>=0.3.16
