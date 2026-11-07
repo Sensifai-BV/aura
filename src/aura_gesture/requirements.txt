@@ -1,0 +1,4 @@
+# Install in the SAME Python interpreter used by your ROS2 distribution
+# (e.g. a --system-site-packages venv). OpenCV and numpy come from apt
+# (python3-opencv, python3-numpy) so they match the ROS Python.
+onnxruntime>=1.20

@@ -1,0 +1,42 @@
+aura_camera:
+  ros__parameters:
+    # "0", "/dev/video0", or an MJPEG URL such as http://host.orb.internal:18090/stream.mjpg
+    source: "0"
+    width: 1280
+    height: 720
+    fps: 30.0
+    jpeg_quality: 85
+    frame_id: aura_camera
+    image_topic: /aura/camera/image_raw/compressed
+    annotation_topic: /aura/camera/annotation
+    reconnect_s: 1.0
+
+aura_gesture:
+  ros__parameters:
+    # Bundled with the package (share/aura_gesture/model/gesture). Relative paths are tried
+    # against the working directory first, then the package share; absolute paths as given.
+    model_path: model/gesture/YOLOv10n_gestures.onnx
+    model_id: ""            # defaults to the model file stem
+    num_threads: 4
+    providers: ""           # e.g. "TensorrtExecutionProvider,CPUExecutionProvider"; empty = best available
+    image_topic: /aura/camera/image_raw/compressed
+    hypothesis_topic: /aura/gesture/hypothesis
+    intent_topic: /aura/gesture/intent
+    detections_topic: /aura/gesture/detections
+    min_detection_score: 0.25
+    # k-of-n temporal acceptance (see aura_gesture/decision.py)
+    window: 8
+    min_votes: 5
+    accept_threshold: 0.8
+    gestures:   [thumb_up, thumb_down, fist,  palm,   point]
+    intents:    [confirm,  reject,     stop,  cancel, select]
+    # Operating points from the offline A/B (FA <= 1% at 0.8); stop reacts faster.
+    thresholds: [0.8,      0.8,        0.7,   0.8,    0.8]
+    votes:      [5,        5,          3,     5,      5]
+    cooldown_s: 1.0
+    rearm_frames: 3
+    max_frame_age_s: 0.5
+    diagnostics_period_s: 1.0
+    # Annotated debug stream for rqt_image_view/Foxglove (extra JPEG encode per frame)
+    publish_debug_image: false
+    debug_image_topic: /aura/gesture/debug_image/compressed
