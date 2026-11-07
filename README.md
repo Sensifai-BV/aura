@@ -28,7 +28,7 @@ flowchart LR
     orion --> proxy["ngsi-proxy"] --> wc["WireCloud dashboards"]
   end
 
-  robot == "DDS topics (UDP, domain 0)" ==> orion
+  robot == "DDS topics, domain 0 (DDS Router over TLS/TCP)" ==> orion
 ```
 
 | Package | Role | Input | Output | Model / runtime |

@@ -23,16 +23,23 @@ and each Mintaka reads one database.
 | Grafana | `https://aura-dash.sensifai.com/grafana/` | own login, anonymous access off |
 | Mission report pages | `https://aura-dash.sensifai.com/monitor/aura/reports/<id>` and `/monitor/sim/...` | read only (GET); the monitors' APIs are **not** exposed |
 | Live updates | `https://aura-dash.sensifai.com/eventsource` | ngsi-proxy, needed by the dashboards |
-| DDS, real robot (domain 0) | UDP 7400, 7410-7419 on the server's address | robot sets `ROS_STATIC_PEERS` to it |
-| DDS, Simulator (domain 1) | UDP 7650, 7660-7669 on the server's address | |
+| DDS, real robot (domain 0) | **TCP 11800** on the server's address (`ddsrouter`, TLS) | the robot runs a DDS Router client, see [DDS_INTEGRATION.md](DDS_INTEGRATION.md#robot-link-over-the-internet-dds-router-over-tcp) |
+| DDS, Simulator (domain 1) | UDP 7650, 7660-7669 on the server's address | only for an external test publisher; the built-in generator needs no port |
 
 **Not published:** Orion-LD HTTP, Mintaka, Mongo, Postgres, the monitors (all internal; WireCloud's proxy reaches Orion-LD
 and Mintaka server-side, so the browser never needs them).
 
-**Firewall:** Coolify publishes the DDS ports on the host but cannot open the host or cloud firewall. Open the UDP ports
-above there, and **restrict them to the robot's address** (DDS has no authentication: anyone who can reach the port can
-write telemetry). `aura-dash.sensifai.com` is behind Cloudflare's proxy, which carries HTTPS only: robots must use the
-server's IP address (or a DNS-only name) for DDS, never the proxied name. Robot side: [DDS_INTEGRATION.md](DDS_INTEGRATION.md).
+**Firewall:** Coolify publishes the ports on the host but cannot open the host or cloud firewall. Open TCP 11800 there
+and **restrict it to the robot's address**: the TLS on this link proves the server to the robot and encrypts the data, but
+it does not check who the client is, so anyone who can reach the port could write telemetry. `aura-dash.sensifai.com` is
+behind Cloudflare's proxy, which carries HTTPS only: the robot must use the server's IP address or a DNS-only name
+(for example `aura-dds.sensifai.com`, not proxied), never the proxied dashboard name. The certificate names come from
+`DDS_TLS_SAN` (default `DNS:aura-dds.sensifai.com,IP:95.217.135.234`); change it in Coolify before the first start if the
+robot uses another name, or delete the `ddsrouter-data` volume to issue a new certificate.
+
+**Robot certificate:** at its first start `ddsrouter` creates a private CA and a server certificate in the
+`ddsrouter-data` volume and prints the CA in its log as one line `TLS_CA_B64=...` (a public certificate; the key stays in
+the volume). Copy that line to the robot. The certificate lasts 10 years and survives redeploys.
 
 ## Secrets
 

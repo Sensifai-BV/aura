@@ -7,9 +7,13 @@ server (Mintaka, Grafana, aura-monitor, WireCloud) talks HTTP to Orion-LD.
 
 ```
 ROBOT (Artaban + AURA modules)                      SERVER (ARISE middleware)
-  ROS 2 nodes --DDS, UDP, domain 0----------------> Orion-LD (-wip dds) --TROE--> TimescaleDB --> Mintaka / Grafana
-                                                       |-- subscriptions --> aura-monitor, ngsi-proxy --> WireCloud
+  ROS 2 nodes --DDS, domain 0--> DDS Router ==TLS/TCP==> DDS Router --DDS--> Orion-LD (-wip dds) --TROE--> TimescaleDB
+              (client, on the robot)  :11800   (server, ddsrouter)             |-- subscriptions --> aura-monitor, ngsi-proxy
+                                                                               --> WireCloud
 ```
+
+On one LAN or one machine the robot can also talk DDS to Orion-LD directly (section "What runs where"); over the internet
+use the DDS Router link described in "Robot link over the internet".
 
 The topic mapping is `orion/config-dds.json` (`dds.ddsmodule.dds.allowlist` plus `dds.ngsild.topics`). Only listed
 topics are bridged. Per ARISE D2.1 the legacy mode needs no change to the running DDS system; the mapping file supplies
@@ -56,6 +60,48 @@ creates its DDS readers when it first discovers a publisher, and under heavy CPU
 that step can fail silently and is not retried, leaving the entity `"uninitialized"`. The test runner works around this
 by publishing an honest `"starting"` module status before the models load (`tools/integration/run_integration.py`).
 
+## Robot link over the internet (DDS Router over TCP)
+
+Plain DDS discovery does not survive NAT (a robot advertises its private address), so the production server accepts a
+TLS-encrypted TCP connection instead. Both ends run `eProsima DDS Router`, built by `fiware/deploy/ddsrouter.Dockerfile`:
+
+- **Server** (`ddsrouter` service of `docker-compose.prod.yml`): listens on TCP 11800, bridges domain 0 to Orion-LD, and
+  runs a small ROS 2 node that announces the message types on the domain. Orion-LD creates its readers only after it sees
+  a writer with the message schema, and DDS Router only creates a writer for data that comes from the robot, so without
+  the announcer nothing would flow. The node publishes no samples: every entity stays `"uninitialized"` until the real
+  robot sends data.
+- **Client** (on the robot or any machine on the robot's LAN): connects out to the server, bridges the local domain.
+  The allow-list is generated from `orion/config-dds.json`: only the 14 mapped topics cross the link.
+
+Run the client with Docker on the robot's computer (host network, so it sees the ROS 2 nodes; build the image from the repo
+root once with `docker build -f fiware/deploy/ddsrouter.Dockerfile -t aura-ddsrouter .`):
+
+```bash
+docker run -d --restart unless-stopped --name aura-ddsrouter --network host \
+  -e ROLE=client -e DDS_DOMAIN=0 \
+  -e SERVER_ADDRESS=aura-dds.sensifai.com \
+  -e TLS_CA_B64='<the TLS_CA_B64=... line printed in the server log, value only>' \
+  aura-ddsrouter
+```
+
+The robot's ROS 2 nodes then run as usual (`ROS_DOMAIN_ID=0`, `rmw_fastrtps_cpp`), with **no** `ROS_STATIC_PEERS` for the
+server: the client router discovers them on the robot's network (multicast). If the ROS 2 nodes run on the same computer,
+host networking is enough; if multicast does not work there, set `ROS_STATIC_PEERS=127.0.0.1` for the nodes.
+
+Environment of the image (`deploy/ddsrouter-entrypoint.py` documents all of them): `ROLE` (`server`|`client`),
+`DDS_DOMAIN`, `WAN_PORT` (11800), `SERVER_ADDRESS` (client), `TLS_CA_B64` (client; without it the client does not
+verify the server), `LOCAL_PEERS` (unicast peers for the local side, used by the server for Orion-LD).
+
+What was tested (locally, Docker; client and server on separate networks, Orion-LD 1.10.0): battery, odometry-style and
+AURA `ModuleStatus` messages published on the client's network reached Orion-LD as entity attributes within about 30 s;
+the link survives a client restart; with TLS 1.3 and the generated CA. **Not yet tested:** a real robot behind NAT across
+the internet, and the production deployment itself.
+
+Limits: the TLS proves the server and encrypts the data, but a router client is not authenticated, so restrict TCP 11800
+to the robot's address at the firewall. The client resolves `SERVER_ADDRESS` once at start; restart it if the address
+changes. Start the server first and let it settle; if Orion-LD was restarted while the router was up, restart `ddsrouter`
+too so Orion-LD sees the announced types again.
+
 ## Topics
 
 **Robot to Orion-LD** (bridged, QoS RELIABLE / VOLATILE, depth 1):
@@ -100,9 +146,8 @@ settings it was started with.
 
 ## Limits
 
-- **No authentication or encryption on DDS** in this setup. Restrict the DDS ports to the robot's address at the firewall,
-  or run the link through a VPN.
-- **Across NAT or the internet** DDS discovery needs the peers to be reachable on the addresses they advertise
-  (a robot behind NAT advertises its private address). A VPN between robot and server, or a Fast DDS Discovery Server /
-  DDS Router, is the usual remedy.
+- **Direct DDS has no authentication or encryption.** Use the DDS Router link (TLS) over the internet; keep direct DDS to
+  one LAN or a VPN.
+- **Across NAT or the internet** plain DDS discovery needs the peers to be reachable on the addresses they advertise
+  (a robot behind NAT advertises its private address): that is why the router link exists.
 - On a single host (a laptop with a VM, or a robot and server on one LAN) `ROS_STATIC_PEERS` is all that is needed.
