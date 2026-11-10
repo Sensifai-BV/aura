@@ -84,6 +84,10 @@ connection, keeps retrying the private address, and no data reaches Orion-LD. Th
 reproduced locally (client reaching the server only through a port mapping); with `PUBLIC_ADDRESS` set, data arrived
 within 30 s.
 
+**Rate limit:** the router forwards at most 2 samples per second on `rt/odom`, `rt/imu/data` and `rt/battery_state`
+(`RATE_LIMIT_HZ`, `RATE_LIMIT_TOPICS`). With the real robot's full-rate odometry and IMU, Orion-LD wrote every sample to
+Mongo and TimescaleDB, the database ran out of connections and Orion-LD crash-looped. Event topics are never limited.
+
 Limits: the TLS proves the server and encrypts the data, but a router client is not authenticated, so restrict TCP 11800
 to the robot's address at the firewall. The client resolves `SERVER_ADDRESS` once at start; restart it if the address
 changes. Start the server first and let it settle; if Orion-LD was restarted while the router was up, restart `ddsrouter`

@@ -11,6 +11,8 @@ LOCAL_PEERS     optional, comma-separated host names or IPs of local DDS partici
                 use it where multicast does not work (a shared Docker network). Without it the local side uses multicast.
 LOCAL_IP        with LOCAL_PEERS: this container's address as the peers must reach it (default: resolved from hostname)
 TLS_CERT_B64, TLS_KEY_B64, TLS_DH_B64, TLS_KEY_PASSWORD   server: base64 PEM files (TLS is on when the cert is set)
+RATE_LIMIT_HZ   max samples per second forwarded on RATE_LIMIT_TOPICS (0 = off)  [2]
+RATE_LIMIT_TOPICS  comma-separated DDS topics to limit  [rt/odom,rt/imu/data,rt/battery_state]
 ROUTER_CONFIG_PATCH  YAML merged into the configuration (advanced, e.g. specs/qos)
 ANNOUNCE_TYPES  true|false: with LOCAL_PEERS, announce the message types to Orion-LD [true]
 TLS_AUTO        true: a server without TLS_CERT_B64 creates its own CA and certificate in TLS_DIR [/data/tls, a volume] and
@@ -131,6 +133,13 @@ config = {
     "allowlist": [{"name": name, "type": "*"} for name in topics],
     "participants": [local, wan],
 }
+# A robot publishes odometry and IMU at tens to hundreds of Hz; Orion-LD writes every sample to Mongo and TimescaleDB
+# and fell over under that load. The dashboards need about one sample per second, so the router forwards at most
+# RATE_LIMIT_HZ per listed topic (newer samples win). Event topics (transcripts, intents) are never limited.
+rate = float(os.environ.get("RATE_LIMIT_HZ", "2"))
+limited = [t for t in os.environ.get("RATE_LIMIT_TOPICS", "rt/odom,rt/imu/data,rt/battery_state").split(",") if t]
+if rate > 0 and limited:
+    config["topics"] = [{"name": t, "qos": {"max-tx-rate": rate}} for t in limited]
 config.update(yaml.safe_load(os.environ.get("ROUTER_CONFIG_PATCH") or "{}"))   # advanced: extra top-level YAML keys
 with open("/tmp/ddsrouter.yaml", "w") as f:
     yaml.safe_dump(config, f, sort_keys=False)

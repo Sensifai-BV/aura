@@ -42,6 +42,8 @@ services:
 
   timescale:
     image: timescale/timescaledb-ha:pg17-ts2.18
+    # default 100 connections ran out with the real robot (Orion-LD, Orion-LD sim, 2x Mintaka, 2x monitor, Grafana)
+    command: postgres -c max_connections=300
     restart: unless-stopped
     mem_limit: 1280m
     cpus: 1.0
