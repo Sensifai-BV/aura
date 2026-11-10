@@ -78,6 +78,12 @@ AURA `ModuleStatus` messages published on the client's network reached Orion-LD 
 the link survives a client restart; with TLS 1.3 and the generated CA. **Not yet tested:** a real robot behind NAT across
 the internet, and the production deployment itself.
 
+**The server must announce its public address** (`PUBLIC_ADDRESS`, production default `95.217.135.234`). Behind Docker's
+port mapping a server listening on `0.0.0.0` announces its private container address; the robot then holds the TCP
+connection, keeps retrying the private address, and no data reaches Orion-LD. This was seen with the real robot and
+reproduced locally (client reaching the server only through a port mapping); with `PUBLIC_ADDRESS` set, data arrived
+within 30 s.
+
 Limits: the TLS proves the server and encrypts the data, but a router client is not authenticated, so restrict TCP 11800
 to the robot's address at the firewall. The client resolves `SERVER_ADDRESS` once at start; restart it if the address
 changes. Start the server first and let it settle; if Orion-LD was restarted while the router was up, restart `ddsrouter`

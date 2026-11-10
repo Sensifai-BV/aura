@@ -106,6 +106,8 @@ services:
       LOCAL_PEERS: orion
       WAN_PORT: "11800"
       TLS_SAN: ${DDS_TLS_SAN:-DNS:aura-dds.sensifai.com,IP:95.217.135.234}
+      # the address the robot connects to, announced instead of the container's private address (required behind NAT)
+      PUBLIC_ADDRESS: ${DDS_PUBLIC_ADDRESS:-95.217.135.234}
     ports:
       - "11800:11800/tcp"
     volumes:

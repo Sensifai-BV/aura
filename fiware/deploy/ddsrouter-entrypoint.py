@@ -5,6 +5,8 @@ DDS_DOMAIN      local DDS domain (0 = real robot, 1 = Simulator)               [
 DDS_CONFIG      Orion-LD mapping the allow-list is taken from                  [/etc/aura/config-dds.json]
 WAN_PORT        TCP port (server: listening; client: the server's port)        [11800]
 SERVER_ADDRESS  client only: the server's IP address or DNS name
+PUBLIC_ADDRESS  server only: the public IP or DNS name the robot connects to (required behind Docker / NAT);
+PUBLIC_PORT     the public TCP port if it differs from WAN_PORT
 LOCAL_PEERS     optional, comma-separated host names or IPs of local DDS participants (Orion-LD) to reach by unicast;
                 use it where multicast does not work (a shared Docker network). Without it the local side uses multicast.
 LOCAL_IP        with LOCAL_PEERS: this container's address as the peers must reach it (default: resolved from hostname)
@@ -90,7 +92,15 @@ def generate_tls(directory):
 
 
 if role == "server":
-    wan["listening-addresses"] = [{"ip": "0.0.0.0", "port": port, "transport": "tcp"}]
+    # Behind Docker's port mapping (or any NAT) the router must announce the address the robot actually connects to;
+    # with 0.0.0.0 it announces its private container addresses, the robot cannot reach them and no data flows.
+    public = os.environ.get("PUBLIC_ADDRESS", "")
+    if public:
+        listen = {"ip": socket.gethostbyname(public), "port": port, "transport": "tcp",
+                  "external-port": int(os.environ.get("PUBLIC_PORT", port))}
+    else:
+        listen = {"ip": "0.0.0.0", "port": port, "transport": "tcp"}
+    wan["listening-addresses"] = [listen]
     cert, key, dh = write_pem("TLS_CERT_B64", "server.crt"), write_pem("TLS_KEY_B64", "server.key"), write_pem("TLS_DH_B64", "dh.pem")
     if not cert and os.environ.get("TLS_AUTO", "true") == "true":
         cert, key, dh = generate_tls(os.environ.get("TLS_DIR", "/data/tls"))
