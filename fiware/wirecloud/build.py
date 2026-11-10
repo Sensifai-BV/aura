@@ -20,7 +20,7 @@ ROOT = Path(__file__).resolve().parent
 DIST = Path(sys.argv[1]) if len(sys.argv) > 1 else ROOT / "dist"
 VENDOR, VERSION = "Sensifai", "1.2.4"
 NS = "http://wirecloud.conwet.fi.upm.es/ns/macdescription/1"
-AUTHOR, EMAIL = "Sensifai", "javad@sensifai.com"
+AUTHOR, EMAIL = "Sensifai", "admin@sensifai.com"
 
 SHARED = {  # path in the package → source
     "lib/react.production.min.js": ROOT / "shared/lib/react.production.min.js",
