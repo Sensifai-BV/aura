@@ -282,6 +282,13 @@ class Monitor:
             elif etype == "HRIEvent" and raw.get("id") == INTENT_ID:
                 ent = simplify(raw)
                 ev = ros.intent_event(ent.get("intentEvent"))
+                if ev and self._known_event(ev):
+                    # The same event again: a repeated notification, or the robot adapter adding
+                    # feedback (false activation, time-to-safe-stop). Update it, never count it twice.
+                    merged = self._apply_feedback(ev)
+                    if merged is not None:
+                        self.broadcast({"type": "event_update", "data": merged})
+                    continue
                 if ev and ev["eventId"] != self.last_event_id:
                     self.last_event_id = ev["eventId"]
                     ev["time"] = ent.get("_observedAt") or now_iso()
@@ -294,6 +301,20 @@ class Monitor:
             else:
                 continue
             self.broadcast({"type": "entity", "entityType": etype, "id": data["id"], "data": data})
+
+    def _known_event(self, ev: dict) -> bool:
+        key, now = ros.event_key(ev), time.time()
+        return any(ros.event_key(e) == key and now - e.get("_rx", 0) <= ros.FEEDBACK_WINDOW_S
+                   for e in reversed(self.shift))
+
+    def _apply_feedback(self, ev: dict) -> dict | None:
+        """Copy the adapter's feedback onto every stored copy of the event; the updated event or None."""
+        key, merged = ros.event_key(ev), None
+        copies = list(self.shift) + list(self.events) + (self.mission.events if self.mission else [])
+        for e in copies:
+            if ros.event_key(e) == key and ros.apply_feedback(e, ev):
+                merged = e
+        return merged
 
     # -- queries ------------------------------------------------------------------
     async def history(self, entity: str, attrs: list[str], minutes: int) -> dict:

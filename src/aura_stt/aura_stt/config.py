@@ -25,6 +25,10 @@ class SttConfig:
     transcript_topic: str = "/aura_transcript"
     partial_topic: str = "/aura_partial_transcript"
     status_topic: str = "/aura/stt/status"
+    # aura_tts playback state; the microphone is muted while it is true and for
+    # echo_tail_s after. Empty disables the gate (STT then hears the robot itself).
+    speaking_topic: str = "/aura/speaker/speaking"
+    echo_tail_s: float = 0.4
     speech_threshold_db: float = -40.0
     silence_s: float = 0.8
     pre_roll_s: float = 0.3
@@ -33,6 +37,12 @@ class SttConfig:
     @classmethod
     def defaults(cls):
         return asdict(cls(model_dir=os.environ.get("AURA_STT_MODEL_DIR", "model")))
+
+    @classmethod
+    def from_parameters(cls, values):
+        """ROS parameters, with AURA_STT_MODEL_DIR (when set) taking precedence over model_dir."""
+        env = os.environ.get("AURA_STT_MODEL_DIR", "").strip()
+        return cls.from_mapping({**values, "model_dir": env} if env else values)
 
     @classmethod
     def from_mapping(cls, values):
@@ -49,7 +59,8 @@ class SttConfig:
         return max(1.2, self.latency_ms / 1000 + 0.2)
 
     def validate(self):
-        for name in ("model_dir", "device", "input_device", "audio_file", "transcript_topic", "partial_topic"):
+        for name in ("model_dir", "device", "input_device", "audio_file", "transcript_topic", "partial_topic",
+                     "speaking_topic"):
             if not isinstance(getattr(self, name), str):
                 raise ValueError(f"{name} must be a string (quote microphone indices)")
         if not self.model_dir.strip():
@@ -79,7 +90,7 @@ class SttConfig:
             raise ValueError("Transcript topic names must not be empty")
         if self.transcript_topic == self.partial_topic:
             raise ValueError("Partial and final topics must be different")
-        for name in ("speech_threshold_db", "silence_s", "pre_roll_s", "max_utterance_s"):
+        for name in ("speech_threshold_db", "silence_s", "pre_roll_s", "max_utterance_s", "echo_tail_s"):
             value = getattr(self, name)
             if isinstance(value, bool) or not isinstance(value, (float, int)) or not math.isfinite(value):
                 raise ValueError(f"{name} must be a finite number")
@@ -87,5 +98,7 @@ class SttConfig:
             raise ValueError("speech_threshold_db must be between -100 and 0")
         if self.silence_s < 0.02 or self.pre_roll_s < 0:
             raise ValueError("silence_s must be >= 0.02 and pre_roll_s >= 0")
+        if not 0 <= self.echo_tail_s <= 5:
+            raise ValueError("echo_tail_s must be between 0 and 5 seconds")
         if self.max_utterance_s <= self.silence_s:
             raise ValueError("max_utterance_s must exceed silence_s")

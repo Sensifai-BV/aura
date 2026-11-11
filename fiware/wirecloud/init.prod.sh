@@ -47,7 +47,7 @@ form = urllib.parse.urlencode({"csrfmiddlewaretoken": token, "username": os.envi
 op.open(urllib.request.Request(base + "/login", form, {"Referer": base + "/login"}))
 csrf = next(c.value for c in jar if c.name == "csrftoken")
 headers = {"Content-Type": "application/json", "Accept": "application/json", "X-CSRFToken": csrf, "Referer": base + "/"}
-version = os.environ.get("AURA_VERSION", "1.2.4")
+version = os.environ.get("AURA_VERSION", "1.2.5")
 dashboards = [("aura", "Aura", "Sensifai/aura-dashboard/%s" % version),
               ("simulator", "Simulator", "Sensifai/aura-simulator/%s" % version)]
 workspaces = json.load(op.open(urllib.request.Request(base + "/api/workspaces", headers=headers)))

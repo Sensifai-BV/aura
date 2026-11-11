@@ -26,6 +26,15 @@
     } },
     { id: W.IDS.hriEvent('intent'), attr: 'intentEvent', row: function (v) {
       var m = W.msg(v); if (!m.event_id) return null;
+      // The robot adapter re-publishes an event with the same event_id to report how it ended.
+      var tss = Number(m.time_to_safe_stop_ms) || 0;
+      if (m.outcome === 'false_activation' || tss > 0) {
+        var parts = [m.event_id];
+        if (m.outcome === 'false_activation') parts.push('false activation');
+        if (tss > 0) parts.push('at rest after ' + Math.round(tss) + ' ms');
+        return { module: 'intent', event: 'robot_feedback', detail: parts.join(' · '), intent: m.intent,
+          confidence: W.num(m.confidence), state: m.outcome === 'false_activation' ? 'rejected' : 'safe_stop' };
+      }
       var detail = W.DECISION[m.decision] === 'IGNORE' ? 'not addressed to robot (engagement gate)'
         : m.modality + ' · ' + m.acoustic_condition + ' · operator ' + m.operator_id;
       return { module: 'intent', event: 'intent_resolved', detail: detail, intent: m.intent, confidence: W.num(m.confidence),

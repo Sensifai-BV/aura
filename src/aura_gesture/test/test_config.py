@@ -6,7 +6,7 @@ from aura_gesture.config import CameraConfig, GestureConfig
 def test_defaults_are_valid():
     cfg = GestureConfig.from_mapping(GestureConfig.defaults())
     assert cfg.intent_map["thumb_up"] == "confirm"
-    assert cfg.threshold_map["fist"] == 0.7 and cfg.votes_map["fist"] == 3
+    assert cfg.threshold_map["fist"] == 0.8 and cfg.votes_map["fist"] == 5
     assert cfg.provider_list == []
     CameraConfig.from_mapping(CameraConfig.defaults())
 

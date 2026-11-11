@@ -93,6 +93,15 @@ to the robot's address at the firewall. The client resolves `SERVER_ADDRESS` onc
 changes. Start the server first and let it settle; if Orion-LD was restarted while the router was up, restart `ddsrouter`
 too so Orion-LD sees the announced types again.
 
+## Simulator plane (test publishers)
+
+`ddsrouter-sim` is a second DDS Router server on TCP 11801 that bridges to `orion-sim` (DDS domain 1, Simulator
+dashboard). It reuses the robot link's certificate, so the client needs the same `TLS_CA_B64`. Connect a client with
+`DDS_DOMAIN=1`, `DDS_CONFIG=/etc/aura/config-dds-sim.json`, `WAN_PORT=11801`; `tools/sim_link/run.sh` does this and
+publishes mock data (`tools/sim_link/mock_publish.py`, mission `M-SIM-<UTC time>`), including the robot adapter's
+feedback on intent events (time to rest, false activation). Use it for integration tests instead of the robot plane,
+so a test never mixes with a live robot session.
+
 ## Topics
 
 **Robot to Orion-LD** (bridged, QoS RELIABLE / VOLATILE, depth 1):

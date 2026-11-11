@@ -10,10 +10,10 @@ import rclpy
 from rclpy.node import Node
 from rclpy.executors import ExternalShutdownException
 from aura_interfaces.msg import ModuleStatus
-from std_msgs.msg import String
+from std_msgs.msg import Bool, String
 
 from .asr import StreamingTranscriber
-from .audio import SAMPLE_RATE, UtteranceSegmenter
+from .audio import SAMPLE_RATE, EchoGate, UtteranceSegmenter
 from .config import SttConfig
 from .replay import WaveReplay
 from .microphone import MicrophoneCapture
@@ -41,17 +41,22 @@ class SttNode(Node):
         self.final_times = collections.deque()
         self.final_latency_ms = collections.deque(maxlen=20)
         self.partial_count = 0
+        self.echo = None
+        self.muted_samples = 0
         try:
             defaults = SttConfig.defaults()
             for name, default in defaults.items():
                 self.declare_parameter(name, default, ParameterDescriptor(
                     read_only=True, description="Startup setting; restart STT to change it"))
-            self.config = SttConfig.from_mapping({
+            self.config = SttConfig.from_parameters({
                 name: self.get_parameter(name).value for name in defaults})
             config = self.config
             self.final_publisher = self.create_publisher(String, config.transcript_topic, 10)
             self.partial_publisher = self.create_publisher(String, config.partial_topic, 10)
             self.status_publisher = self.create_publisher(ModuleStatus, config.status_topic, 10)
+            if config.speaking_topic:
+                self.echo = EchoGate(config.echo_tail_s)
+                self.create_subscription(Bool, config.speaking_topic, self._on_speaking, 10)
             self.segmenter = UtteranceSegmenter(
                 self._start_session, threshold_db=config.speech_threshold_db,
                 silence_s=config.silence_s, pre_roll_s=config.pre_roll_s,
@@ -87,6 +92,12 @@ class SttNode(Node):
             super().destroy_node()
             raise
 
+    def _on_speaking(self, msg):
+        self.echo.speaking(bool(msg.data))
+        if self.config.debug_audio:
+            self.get_logger().info(f"echo gate: robot {'speaking, microphone muted' if msg.data else 'quiet'} "
+                                   f"(t={time.monotonic():.2f})")
+
     def _fail(self, exc):
         if self.failure is None:
             self.failure = exc
@@ -108,7 +119,7 @@ class SttNode(Node):
         try:
             self.captured_samples += len(block)
             self.capture_peak = max(self.capture_peak, float(abs(block).max()))
-            self.audio.put_nowait(block)
+            self.audio.put_nowait((block, time.monotonic()))
         except queue.Full:
             self._fail(BufferError("Microphone queue full; inference cannot keep up"))
 
@@ -133,12 +144,16 @@ class SttNode(Node):
         try:
             while not self.stop_event.is_set():
                 try:
-                    block = self.audio.get(timeout=0.1)
+                    item = self.audio.get(timeout=0.1)
                 except queue.Empty:
                     continue
-                if block is None:
+                if item is None:
                     self.segmenter.finish()
                     return
+                block, captured_at = item
+                if self.echo is not None and self.echo.muted(captured_at):
+                    self.muted_samples += len(block)
+                    block = block * 0
                 self.segmenter.push(block)
         except Exception as exc:
             self._fail(exc)
@@ -229,7 +244,9 @@ class SttNode(Node):
         latency = (sum(self.final_latency_ms) / len(self.final_latency_ms)) if self.final_latency_ms else 0.0
         values = dict(rate=round(len(self.final_times), 2), rate_unit="/min", latency_ms=round(latency, 1),
                       latency_setting_ms=self.config.latency_ms, captured_s=round(self.captured_samples / SAMPLE_RATE, 1),
-                      peak=round(self.capture_peak, 3), device=str(self.transcriber.device))
+                      peak=round(self.capture_peak, 3), device=str(self.transcriber.device),
+                      echo_gate="on" if self.echo is not None else "off",
+                      muted_s=round(self.muted_samples / SAMPLE_RATE, 1))
         status.keys, status.values = list(values), [str(v) for v in values.values()]
         status.header.stamp = self.get_clock().now().to_msg()
         self.status_publisher.publish(status)

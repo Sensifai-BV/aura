@@ -18,7 +18,7 @@ def launch_nodes(context):
         nodes.append(Node(package="aura_gesture", executable="camera", name="aura_camera",
                           output="screen", parameters=[params, overrides]))
     overrides = {}
-    for name in ("model_path", "model_id"):
+    for name in ("model_path", "model_id", "providers"):
         value = LaunchConfiguration(name).perform(context)
         if value:
             overrides[name] = value
@@ -40,6 +40,8 @@ def generate_launch_description():
         DeclareLaunchArgument("source", default_value="", description="Override camera source"),
         DeclareLaunchArgument("model_path", default_value=""),
         DeclareLaunchArgument("model_id", default_value=""),
+        DeclareLaunchArgument("providers", default_value="",
+                              description="Override YAML ONNX Runtime providers, e.g. CUDAExecutionProvider,CPUExecutionProvider"),
         DeclareLaunchArgument("debug", default_value="false",
                               description="Publish the annotated debug image stream"),
         DeclareLaunchArgument("max_frame_age_s", default_value="",

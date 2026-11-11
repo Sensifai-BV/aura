@@ -33,6 +33,11 @@ mission id of `aura_intent`. Scenario 16 is the 22 fine-tuned commands (wake wor
 `run_integration.py --only 16 --confirm-mode never --mission-id M-AURA-LIVE-01` (last run: 19 of 22 correct, median
 1.5 s from end of speech to decision; the misses were STT: "halt", "Artaban, wait", "Artaban, open the valve").
 
+The robot's voice is fed back into the operator microphone (`--echo-gain`, default 0.8; 0 = no echo), as on
+Artaban where the speaker is next to the microphone. Scenario 17 checks what failed in the field on 10 Nov: the
+robot's own "Stop, executing." must not stop it again, and a "yes" said 0.6 s after the question must confirm it.
+`--no-echo-gate` turns off STT's echo gate for a baseline.
+
 Operator speech is synthesised with Supertonic (voice 3; the robot speaks voice 0) and can be mixed with plant noise
 at a set SNR. Results: `<out>/report.json` (checks, notes, event timeline) and one log per node.
 

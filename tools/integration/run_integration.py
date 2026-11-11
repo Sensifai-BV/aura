@@ -19,6 +19,7 @@ topics, diagnostics) to judge each scenario. Nothing in the nodes is mocked.
 """
 
 import argparse
+import collections
 import json
 import os
 import queue
@@ -109,7 +110,7 @@ class Observer(Node):
             "hypothesis", gesture=m.gesture, raw=m.raw_label, state=m.state, conf=m.frame_confidence,
             inference_ms=m.inference_ms, latency_ms=m.latency_ms), 100)
         sub(CompressedImage, "/aura/camera/image_raw/compressed", self.on_frame, 10)
-        for topic in ("/aura/intent/status", "/aura/speaker/status"):
+        for topic in ("/aura/intent/status", "/aura/speaker/status", "/aura/stt/status"):
             sub(ModuleStatus, topic, lambda m, t=topic: self.on_diag(t, m), 10)
         self.status_pub = self.create_publisher(ArtabanStatus, "/artaban/status", 10)
         self.env_pub = self.create_publisher(EnvironmentReading, "/artaban/environment", 10)
@@ -166,17 +167,61 @@ class Observer(Node):
 class Operator:
     """Voice and camera as seen by the robot: always-on streams over websockets."""
 
-    def __init__(self, url, tts):
+    def __init__(self, url, tts, echo_gain=0.0):
         self.url, self.tts = url, tts
         self.audio = queue.Queue()
+        # The robot's own voice as the microphone hears it (aura_tts -> /speaker_out), mixed into
+        # the operator stream. Artaban's speaker is close to its microphone, so it is loud.
+        self.echo_gain = echo_gain
+        self.echo = collections.deque()  # float32 chunks at RATE
+        self.echo_lock = threading.Lock()
+        self.echo_s = 0.0
         self.frames = None  # list of JPEG bytes currently shown to the camera
         self.stop = threading.Event()
         self.sent_audio_s = 0.0
         self.sent_frames = 0
         self.ambient_db = -66.0
         self.rng = np.random.default_rng(7)
-        for target in (self._mic, self._cam):
+        targets = (self._mic, self._cam) + ((self._speaker,) if echo_gain > 0 else ())
+        for target in targets:
             threading.Thread(target=target, daemon=True).start()
+
+    # ---- robot loudspeaker heard by the microphone
+    def _speaker(self):
+        while not self.stop.is_set():
+            try:
+                with connect(f"{self.url}/speaker_out", max_size=None) as ws:
+                    resampler = None
+                    for msg in ws:
+                        if isinstance(msg, str):
+                            m = json.loads(msg)
+                            if m.get("cancel"):
+                                with self.echo_lock:
+                                    self.echo.clear()
+                            elif "rate" in m:
+                                resampler = soxr.ResampleStream(m["rate"], RATE, 1, dtype="float32")
+                            continue
+                        pcm = np.frombuffer(msg, dtype="<i2").astype(np.float32) / 32768
+                        if resampler is not None:
+                            pcm = resampler.resample_chunk(pcm)
+                        with self.echo_lock:
+                            self.echo.append(pcm * self.echo_gain)
+                            self.echo_s += len(pcm) / RATE
+            except Exception:  # noqa: BLE001 - bridge restart; reconnect
+                time.sleep(0.5)
+
+    def _take_echo(self, n):
+        out = np.zeros(n, np.float32)
+        with self.echo_lock:
+            i = 0
+            while self.echo and i < n:
+                chunk = self.echo.popleft()
+                take = min(n - i, len(chunk))
+                out[i:i + take] = chunk[:take]
+                if take < len(chunk):
+                    self.echo.appendleft(chunk[take:])
+                i += take
+        return out
 
     # ---- microphone
     def _mic(self):
@@ -187,6 +232,8 @@ class Operator:
                     block = self.audio.get_nowait()
                 except queue.Empty:
                     block = self.rng.standard_normal(BLOCK).astype(np.float32) * 10 ** (self.ambient_db / 20)
+                if self.echo_gain > 0:
+                    block = block + self._take_echo(len(block))
                 ws.send(np.clip(block * 32767, -32768, 32767).astype("<i2").tobytes())
                 self.sent_audio_s += BLOCK / RATE
                 deadline += BLOCK / RATE
@@ -198,12 +245,12 @@ class Operator:
         audio = soxr.resample(audio, self.tts.sample_rate, RATE)
         return audio / max(1e-6, float(np.abs(audio).max())) * 0.5  # about -6 dBFS peak
 
-    def speak(self, text, noise_snr_db=None, tail_s=1.6, voice=3):
+    def speak(self, text, noise_snr_db=None, tail_s=1.6, voice=3, lead_s=0.2):
         """Queue speech; returns monotonic time at which the speech ends."""
         audio = self.synth(text, voice)
         if noise_snr_db is not None:
             audio = audio + self.plant_noise(len(audio), audio, noise_snr_db)
-        pad = np.zeros(int(0.2 * RATE), dtype=np.float32)
+        pad = np.zeros(int(lead_s * RATE), dtype=np.float32)
         pcm = np.concatenate((pad, audio, np.zeros(int(tail_s * RATE), dtype=np.float32)))
         if noise_snr_db is not None:  # noise continues through the silence after the phrase
             pcm[len(pad) + len(audio):] += self.plant_noise(len(pcm) - len(pad) - len(audio), audio, noise_snr_db)
@@ -294,13 +341,56 @@ class Ctx:
         self.checks.append({"check": name, "ok": bool(ok), "detail": str(detail)})
         return bool(ok)
 
-    def utter(self, text, timeout=25, noise=None, kind="event", expect=None):
+    def wait_robot_quiet(self, after_s=0.6, timeout=20):
+        """An operator lets the robot finish its sentence: STT does not listen while the robot speaks."""
+        end = time.monotonic() + timeout
+        while time.monotonic() < end:
+            last = self.obs.since(0, "speaking")[-1:]
+            says = self.obs.since(0, "say")[-1:]
+            started = [t for t, f in self.obs.since(0, "speaking") if f["value"]][-1:]
+            # a prompt was sent but its playback has not started yet (synthesis takes up to ~1 s)
+            if says and (not started or says[0][0] > started[0]) and time.monotonic() - says[0][0] < 3:
+                time.sleep(0.05)
+                continue
+            if not last or last[0][1]["value"] is False:
+                wait = (last[0][0] + after_s - time.monotonic()) if last else 0
+                if wait <= 0:
+                    return
+                time.sleep(wait)
+            else:
+                time.sleep(0.05)
+
+    def utter(self, text, timeout=25, noise=None, kind="event", expect=None, wait_quiet=True):
         """Speak, return (mark, speech_end_t, first record of `kind` after speech)."""
+        if wait_quiet:
+            self.wait_robot_quiet()
         mark = self.obs.mark()
         end = self.op.speak(text, noise_snr_db=noise)
         pred = expect or (lambda f: True)
-        t, rec = self.obs.wait(pred, kind, mark, timeout + max(0, end - time.monotonic()))
+        deadline = timeout + max(0, end - time.monotonic())
+        if kind == "event":
+            # Decisions on this phrase follow its own transcript, which cannot be final before the
+            # speech ends. Under CPU load STT and the intent model fall behind; starting the search
+            # at that transcript keeps a late event of the previous phrase from being taken.
+            start = self.transcript_after(mark, end, deadline)
+            if start is None:
+                return mark, end, None, None
+            t, rec = self.obs.wait(pred, kind, start, timeout)
+            return mark, end, t, rec
+        t, rec = self.obs.wait(pred, kind, mark, deadline)
         return mark, end, t, rec
+
+    def transcript_after(self, mark, end, timeout):
+        """Log index of the first transcript received after the speech ended, or None."""
+        stop = time.monotonic() + timeout
+        while time.monotonic() < stop:
+            with self.obs.lock:
+                for i in range(mark, len(self.obs.log)):
+                    t, k, _ = self.obs.log[i]
+                    if k == "transcript" and t >= end - 0.2:
+                        return i
+            time.sleep(0.05)
+        return None
 
     def settle(self, seconds=1.0):
         time.sleep(seconds)
@@ -319,6 +409,8 @@ def s01_stt_transcription(c):
     c.check("streaming partials precede the final", len(partials) >= 1, f"{len(partials)} partials")
     if t:
         c.notes["end_of_speech_to_final_s"] = round(t - end, 2)
+    # let the intent decision (a confirmation question) arrive and play before the next scenario speaks
+    c.obs.wait(lambda f: True, "event", mark, 15)
     c.utter_cleanup()
 
 
@@ -408,9 +500,13 @@ def s07_answer_without_question(c):
 def s08_confirm_timeout(c):
     mark, end, t, rec = c.utter("next step", expect=lambda f: f["decision"] == "CONFIRM")
     c.check("question asked", rec is not None, rec)
-    t0 = time.monotonic()
-    _, say = c.obs.wait(is_(text="No answer, command dropped."), "say", mark, 14)
-    c.check("unanswered question expires (~8 s)", say is not None)
+    t_end, _ = c.obs.wait(lambda f: f["value"] is False, "speaking", mark, 15)
+    t_say, say = c.obs.wait(is_(text="No answer, command dropped."), "say", mark, 30)
+    timeout = c.args.confirm_timeout or 12.0
+    waited = (t_say - t_end) if t_say and t_end else None
+    c.notes["answer_window_s"] = round(waited, 2) if waited else None
+    c.check(f"unanswered question expires {timeout:.0f} s after it was spoken",
+            waited is not None and timeout - 0.5 <= waited <= timeout + 1.0, waited)
     _, ev = c.obs.wait(is_(decision="REJECT", outcome="rejected"), "event", mark, 2)
     c.check("timeout published as REJECT/rejected", ev is not None, ev)
     c.utter_cleanup()
@@ -549,10 +645,57 @@ def s16_command_suite(c):
     c.notes["suite"] = table
     c.notes["suite_score"] = f"{sum(r['ok'] for r in table)}/{len(table)}"
 
+ROBOT_WORDS = ("did you say", "executing", "thumb", "no answer", "nothing to confirm", "cannot do")
+
+
+def robot_echo(records):
+    return [f["text"] for _, f in records if any(w in f["text"].lower() for w in ROBOT_WORDS)]
+
+
+def s17_robot_hears_itself(c):
+    """Field issue (Panza, 10 Nov): the robot transcribed its own "Stop, executing." and stopped again
+    in a loop, and answers spoken right after a question were lost or merged with the question."""
+    if c.op.echo_gain <= 0:
+        c.skip = "needs --echo-gain > 0"
+        return
+    heard0 = c.op.echo_s
+    mark, end, t, rec = c.utter("Artaban, stop", expect=lambda f: f["intent"] == "stop")
+    c.check("stop accepted", rec is not None and rec["decision"] == "ACCEPT", rec)
+    c.obs.wait(lambda f: f["value"] is False, "speaking", mark, 10)
+    time.sleep(5)  # the field loop repeated every 3 s
+    stops = [f for _, f in c.obs.since(mark, "event") if f["intent"] == "stop"]
+    c.check("one stop only (the robot's 'Stop, executing.' is not heard as a command)", len(stops) == 1, len(stops))
+    c.check("robot voice reached the microphone", c.op.echo_s - heard0 > 1.0, round(c.op.echo_s - heard0, 1))
+    c.utter_cleanup()
+
+    mark, end, t, rec = c.utter("robot, next step", expect=lambda f: f["intent"] == "next_step")
+    c.check("next step held for confirmation", rec is not None and rec["decision"] == "CONFIRM", rec)
+    t_end, _ = c.obs.wait(lambda f: f["value"] is False, "speaking", mark, 15)
+    c.check("question played", t_end is not None)
+    # The operator answers 0.6 s after the question ends (the field answers came 0.5 to 1.4 s after).
+    time.sleep(max(0.0, (t_end or time.monotonic()) + 0.4 - time.monotonic()))
+    t_ans, ans = c.utter("yes", expect=lambda f: f["decision"] in ("ACCEPT", "REJECT"), wait_quiet=False)[2:]
+    c.check("quick 'yes' confirms the command", ans is not None and ans["decision"] == "ACCEPT"
+            and ans["intent"] == "next_step" and ans["outcome"] == "correct", ans)
+    if t_end and t_ans:
+        c.notes["question_end_to_decision_s"] = round(t_ans - t_end, 2)
+    c.obs.wait(lambda f: f["value"] is False, "speaking", c.obs.mark(), 8)
+    time.sleep(3)
+    texts = c.obs.since(mark, "transcript")
+    c.notes["transcripts"] = [f["text"] for _, f in texts]
+    c.check("no transcript of the robot's own speech", not robot_echo(texts), robot_echo(texts))
+    c.check("the answer is its own transcript", any(f["text"].strip(" .!").lower() == "yes" for _, f in texts),
+            [f["text"] for _, f in texts])
+    diag = c.obs.diag.get("/aura/stt/status", {})
+    c.notes["stt_status"] = {k: diag.get(k) for k in ("echo_gate", "muted_s")}
+    c.utter_cleanup()
+
+
 SCENARIOS = [s01_stt_transcription, s02_stop_is_immediate, s03_confirm_by_voice, s04_deny_by_voice,
              s05_side_talk_ignored, s06_unsupported_command, s07_answer_without_question, s08_confirm_timeout,
              s09_stop_interrupts_pending, s10_noisy_plant, s11_platform_context, s12_camera_pipeline,
-             s13_gestures, s14_fusion_voice_then_gesture, s15_diagnostics, s16_command_suite]
+             s13_gestures, s14_fusion_voice_then_gesture, s15_diagnostics, s16_command_suite,
+             s17_robot_hears_itself]
 
 
 def utter_cleanup(self):
@@ -579,6 +722,10 @@ def main():
     ap.add_argument("--edge", action="store_true", help="publish real edge-computer metrics on /artaban/status (when no robot platform does)")
     ap.add_argument("--mission-id", default="", help="mission id for aura_intent when /artaban/status is not received")
     ap.add_argument("--confirm-mode", default="", help="aura_intent confirm_mode: always, uncertain or never")
+    ap.add_argument("--echo-gain", type=float, default=0.8,
+                    help="robot voice fed back into the operator microphone (0 = no echo, as before)")
+    ap.add_argument("--stt-debug", action="store_true", help="STT debug_audio: levels and echo gate state in stt.log")
+    ap.add_argument("--no-echo-gate", action="store_true", help="STT keeps listening while the robot speaks (baseline)")
     ap.add_argument("--record-mic", default="", help="save the audio STT receives (raw PCM16 16 kHz) to this path")
     ap.add_argument("--live", action="store_true", help="host streams real camera/mic via mac_clients.py; print events")
     ap.add_argument("--keep-running", action="store_true", help="leave nodes + bridge up for live host devices")
@@ -602,7 +749,7 @@ def main():
                     + (["--record", args.record_mic] if args.record_mic else []))
         procs.wait_log("bridge", "ws bridge on", 20)
         procs.start("tts", ["ros2", "run", "aura_tts", "tts", "--ros-args", "-p", "output_device:=" + (
-            "ws://127.0.0.1:8765/speaker" if args.live else "none")])
+            "ws://127.0.0.1:8765/speaker" if args.live or args.echo_gain > 0 else "none")])
         iparams = ([f"confirm_mode:={args.confirm_mode}"] if args.confirm_mode else []) + (
             [f"confirm_timeout_s:={args.confirm_timeout}"] if args.confirm_timeout else []) + (
             [f"mission_id:={args.mission_id}"] if args.mission_id else [])
@@ -610,7 +757,9 @@ def main():
                     + (["--ros-args"] + [x for p in iparams for x in ("-p", p)] if iparams else []))
         procs.start("stt", ["ros2", "run", "aura_stt", "stt", "--ros-args", "-p", f"model_dir:={args.model_dir}",
                             "-p", f"audio_file:={fifo}", "-p", "device:=cpu", "-p", f"latency_ms:={args.latency_ms}"]
-                   + (["-p", f"speech_threshold_db:={args.speech_threshold_db}"] if args.speech_threshold_db else []))
+                   + (["-p", f"speech_threshold_db:={args.speech_threshold_db}"] if args.speech_threshold_db else [])
+                   + (["-p", "speaking_topic:=''"] if args.no_echo_gate else [])
+                   + (["-p", "debug_audio:=true"] if args.stt_debug else []))
         procs.start("camera", ["ros2", "run", "aura_gesture", "camera", "--ros-args",
                                "-p", "source:=http://127.0.0.1:18090/stream.mjpg"])
         procs.start("gesture", ["ros2", "run", "aura_gesture", "gesture"])
@@ -621,7 +770,7 @@ def main():
         if not args.live:
             from aura_tts.engine import SherpaTts
             tts = SherpaTts(args.tts_dir, num_threads=2)
-            op = Operator("ws://127.0.0.1:8765", tts)
+            op = Operator("ws://127.0.0.1:8765", tts, echo_gain=args.echo_gain)
             op.show(op.empty_scene())
         for name, pat in (("tts", r"Speaker ready"), ("intent", r"Intent ready"),
                           ("stt", r"Audio ready"), ("camera", r"Camera source"), ("gesture", r"Gesture ready")):
@@ -668,6 +817,7 @@ def main():
             report["scenarios"].append({"n": i, "name": fn.__name__, "status": status, "skip": ctx.skip, "error": error,
                                         "checks": ctx.checks, "notes": ctx.notes})
         report["frames_sent"], report["audio_s_sent"] = op.sent_frames, round(op.sent_audio_s, 1)
+        report["echo_s_heard"] = round(op.echo_s, 1)
         with obs.lock:
             report["timeline"] = [(round(t, 3), k, f) for t, k, f in obs.log if k not in ("partial", "hypothesis")]
         if args.keep_running:

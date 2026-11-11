@@ -204,6 +204,14 @@ stop the node with an error. Ctrl+C closes capture and unblocks readers;
 an incomplete phrase at shutdown may be discarded.
 Grant microphone access to the application running the node when required.
 
+Echo gate: STT subscribes to `/aura/speaker/speaking` (`speaking_topic`) and replaces
+the audio captured while the robot speaks, and for `echo_tail_s` (0.4 s) after, with
+silence, so the robot never transcribes its own voice and an answer right after a
+question starts a new utterance. A voice command said while the robot is talking is
+not heard; the fist gesture still stops the robot. `AURA_STT_MODEL_DIR`, when set,
+takes precedence over `model_dir`. Launch overrides: `latency_ms`, `input_device`,
+`device` (also `n_gpu_layers` for aura_intent and `providers` for aura_gesture).
+
 Validate audio buffering and endpoints without ROS2:
 
 ```bash
@@ -262,7 +270,8 @@ intent set and its sequence probability is the command confidence:
 Decisions use the `IntentEvent` codes: confidence below `reject_threshold` (0.52) is `REJECT`
 ("please repeat"); `confirm_mode` `always` (default) holds every non-safety command as `CONFIRM`
 until a voice yes/no or a gesture answers it (`thumb_up` = yes, `thumb_down` / `palm` = no) or
-`confirm_timeout_s` passes; `uncertain` holds only commands below `accept_threshold` (0.72);
+`confirm_timeout_s` (12 s, counted from the end of the spoken question on
+`/aura/speaker/speaking`) passes; `uncertain` holds only commands below `accept_threshold` (0.72);
 `never` executes directly. Gestures act directly too: `fist` = stop, `palm` = cancel, `point` =
 select the pointed target. A confirmed command is published as `ACCEPT` with `outcome: correct`
 (modality `fused` when voice was confirmed by gesture); a "no" publishes `cancel` with
@@ -415,9 +424,15 @@ ros2 topic echo /aura/gesture/intent
 `config/gesture.yaml` holds every parameter. Relative `model_path` values are
 tried against the working directory first and then the installed package
 share, so the bundled model works from any directory. `providers` selects ONNX
-Runtime execution providers (empty = TensorRT, then CUDA, then CPU when
-available). A gesture is accepted when `votes` of the last `window` frames
-reach its `thresholds` entry; the same gesture re-arms only after it has been
+Runtime execution providers (empty = CUDA, then CPU; TensorRT only when listed).
+On an NVIDIA driver older than 580 use a CUDA 12 build of `onnxruntime-gpu` (the
+PyPI wheels from 1.30 on are built for CUDA 13), for example 1.29.0 from the
+ONNX Runtime CUDA 12 package feed with the CUDA 12 runtime libraries.
+A gesture is accepted when `votes` of the last `window` frames
+reach its `thresholds` entry (every gesture 0.8 and 5 of 8 frames). The threshold
+applies to each frame; the `confidence` in `GestureIntent` is the mean over the
+window with absent frames counted as 0, so an accepted gesture often reports less
+than its threshold; the same gesture re-arms only after it has been
 absent for `rearm_frames` frames, and `cooldown_s` separates consecutive
 intents. Frames older than `max_frame_age_s` are dropped instead of queued, so
 decisions never lag the operator. Parameters are read-only after startup.

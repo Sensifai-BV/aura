@@ -51,6 +51,44 @@ def environment(entity: dict) -> dict:
     }
 
 
+# Fields the robot adapter may fill in later by publishing the same IntentEvent again (same
+# event_id): it knows whether a stop was unintended and how long the robot took to come to rest.
+FEEDBACK = ("outcome", "correct", "timeToSafeStopMs", "recoveryTimeS")
+FEEDBACK_WINDOW_S = 600.0  # event_id restarts with aura_intent, so only match recent events
+
+
+def event_key(ev: dict) -> tuple:
+    return ev.get("missionId"), ev.get("eventId")
+
+
+def apply_feedback(target: dict, update: dict) -> bool:
+    """Copy feedback fields that ``update`` sets onto ``target``; True when something changed."""
+    changed = False
+    for k in FEEDBACK:
+        v = update.get(k)
+        if v in (None, "") or (k == "correct" and not v and not update.get("outcome")):
+            continue
+        if target.get(k) != v:
+            target[k] = v
+            changed = True
+    return changed
+
+
+def merge_feedback(events: list[dict], t: str = "_rx") -> list[dict]:
+    """Collapse re-published events (oldest first) into the first one with the same key."""
+    first: dict[tuple, dict] = {}
+    out = []
+    for ev in events:
+        key = event_key(ev)
+        prev = first.get(key)
+        if prev is not None and abs(float(ev.get(t, 0)) - float(prev.get(t, 0))) <= FEEDBACK_WINDOW_S:
+            apply_feedback(prev, ev)
+            continue
+        first[key] = ev
+        out.append(ev)
+    return out
+
+
 def intent_event(msg: dict) -> dict | None:
     """aura_interfaces/IntentEvent → the event dict used by kpi.compute (camelCase, decision as a word)."""
     msg = _msg(msg)

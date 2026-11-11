@@ -50,6 +50,10 @@ class Decision:
         return self.intent in SAFETY_CRITICAL
 
 
+# A question whose playback never reports its end is dropped after this long anyway.
+MAX_QUESTION_S = 30.0
+
+
 @dataclass
 class Pending:
     intent: str
@@ -59,10 +63,16 @@ class Pending:
     utterance: str
     gesture: str
     asked_at: float
+    playing: bool = False  # the speaker is playing the question now
+    answer_from: float | None = None  # end of the question's playback
+
+    @property
+    def window_start(self):
+        return self.asked_at if self.answer_from is None else self.answer_from
 
 
 class Dialog:
-    def __init__(self, accept_threshold=0.72, reject_threshold=0.52, confirm_mode="always", confirm_timeout_s=8.0):
+    def __init__(self, accept_threshold=0.72, reject_threshold=0.52, confirm_mode="always", confirm_timeout_s=12.0):
         if confirm_mode not in ("always", "uncertain", "never"):
             raise ValueError("confirm_mode must be always, uncertain or never")
         if not 0.0 <= reject_threshold <= accept_threshold <= 1.0:
@@ -100,9 +110,27 @@ class Dialog:
         target = "pointed target" if intent == "target_select" else ""
         return self._command(intent, target, confidence, "gesture", now, gesture=gesture)
 
+    def on_speaking(self, active, now):
+        """Speaker playback state. The answer window opens when the question has finished
+        playing, so the time to answer does not shrink with the length of the question."""
+        p = self.pending
+        if p is None:
+            return
+        if active:
+            p.playing = True
+        elif p.playing:
+            p.playing = False
+            p.answer_from = now
+
     def expire(self, now):
         """Drop an unanswered question; call periodically and before every input."""
-        if self.pending is None or now - self.pending.asked_at <= self.confirm_timeout_s:
+        p = self.pending
+        if p is None:
+            return None
+        if p.playing:
+            if now - p.asked_at <= MAX_QUESTION_S:
+                return None
+        elif now - p.window_start <= self.confirm_timeout_s:
             return None
         p, self.pending = self.pending, None
         return Decision(p.intent, REJECT, p.confidence, p.modality, target=p.target, utterance=p.utterance,

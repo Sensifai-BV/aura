@@ -1,6 +1,7 @@
 aura_stt:
   ros__parameters:
     # Relative to the working directory; run from the project root or override.
+    # AURA_STT_MODEL_DIR, when set, takes precedence over this value.
     model_dir: model
     device: cpu
     input_device: ""
@@ -16,6 +17,11 @@ aura_stt:
     debug_audio: false
     transcript_topic: /aura_transcript
     partial_topic: /aura_partial_transcript
+    # Mute the microphone while aura_tts plays (and echo_tail_s after), so the robot
+    # does not transcribe its own speech. "" disables. A voice command spoken while the
+    # robot talks is not heard; the fist gesture still stops the robot.
+    speaking_topic: /aura/speaker/speaking
+    echo_tail_s: 0.4
     speech_threshold_db: -40.0
     silence_s: 0.8
     pre_roll_s: 0.3

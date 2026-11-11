@@ -70,7 +70,7 @@ class GestureConfig:
     model_path: str = "model/gesture/YOLOv10n_gestures.onnx"
     model_id: str = ""  # reported in every message for A/B attribution; defaults to the file stem
     num_threads: int = 4
-    providers: str = ""  # comma-separated ORT providers; empty: TensorRT > CUDA > CPU when available
+    providers: str = ""  # comma-separated ORT providers; empty: CUDA > CPU (TensorRT only when listed)
     image_topic: str = "/aura/camera/image_raw/compressed"
     hypothesis_topic: str = "/aura/gesture/hypothesis"
     intent_topic: str = "/aura/gesture/intent"
@@ -82,8 +82,8 @@ class GestureConfig:
     # Per-gesture overrides, as parallel lists (ROS parameters have no maps).
     gestures: list = field(default_factory=lambda: list(ACTIONABLE))
     intents: list = field(default_factory=lambda: [DEFAULT_INTENTS[g] for g in ACTIONABLE])
-    thresholds: list = field(default_factory=lambda: [0.8, 0.8, 0.7, 0.8, 0.8])
-    votes: list = field(default_factory=lambda: [5, 5, 3, 5, 5])
+    thresholds: list = field(default_factory=lambda: [0.8, 0.8, 0.8, 0.8, 0.8])
+    votes: list = field(default_factory=lambda: [5, 5, 5, 5, 5])
     cooldown_s: float = 1.0
     rearm_frames: int = 3
     max_frame_age_s: float = 0.5

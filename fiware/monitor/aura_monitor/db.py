@@ -25,14 +25,23 @@ CREATE OR REPLACE VIEW aura_attributes AS
   FROM attributes;
 DROP VIEW IF EXISTS aura_intent_events;
 CREATE VIEW aura_intent_events AS
+  WITH raw AS (
+    SELECT * FROM attributes WHERE entityid = '{INTENT_ID}' AND id = '{CTX}intentEvent' AND valuetype = 'Compound'
+  )
   SELECT coalesce(observedat, ts) AS time,
          compound->>'mission_id' AS mission_id, compound->>'intent' AS intent,
          (ARRAY['ACCEPT','CONFIRM','REJECT','IGNORE'])[(compound->>'decision')::int + 1] AS decision,
          compound->>'outcome' AS outcome, (compound->>'correct')::boolean AS correct,
          (compound->>'confidence')::float AS confidence, (compound->>'latency_ms')::float AS latency_ms,
          compound->>'modality' AS modality, compound->>'acoustic_condition' AS condition,
-         compound->>'operator_id' AS operator_id, (compound->>'noise_db')::float AS noise_db, compound
-  FROM attributes WHERE entityid = '{INTENT_ID}' AND id = '{CTX}intentEvent' AND valuetype = 'Compound';
+         compound->>'operator_id' AS operator_id, (compound->>'noise_db')::float AS noise_db,
+         (compound->>'time_to_safe_stop_ms')::float AS time_to_safe_stop_ms, compound
+  FROM raw a
+  WHERE NOT EXISTS (  -- feedback from the robot adapter re-publishes the event with the same event_id
+    SELECT 1 FROM raw b
+    WHERE b.compound->>'event_id' = a.compound->>'event_id'
+      AND b.compound->>'mission_id' IS NOT DISTINCT FROM a.compound->>'mission_id'
+      AND b.ts > a.ts AND b.ts <= a.ts + interval '10 minutes');
 """
 
 
@@ -91,7 +100,7 @@ class Historian:
             if ev:
                 ev["_rx"] = float(r["t"])
                 out.append(ev)
-        return out
+        return ros.merge_feedback(out)
 
     async def recent_events(self, limit: int) -> list[dict]:
         sql = ("select coalesce(observedat, ts) as t, compound from attributes "
@@ -99,11 +108,12 @@ class Historian:
         async with self.pool.connection() as conn:
             rows = await (await conn.execute(sql, (INTENT_ID, CTX + "intentEvent", limit))).fetchall()
         out = []
-        for r in rows:
+        for r in rows[::-1]:  # oldest first, so feedback merges into the original event
             ev = ros.intent_event(r["compound"])
             if ev:
-                out.append({**ev, "time": r["t"].replace(tzinfo=timezone.utc).isoformat()})
-        return out
+                out.append({**ev, "time": r["t"].replace(tzinfo=timezone.utc).isoformat(),
+                            "_t": r["t"].replace(tzinfo=timezone.utc).timestamp()})
+        return [{k: v for k, v in e.items() if k != "_t"} for e in ros.merge_feedback(out, "_t")][::-1]
 
     async def history(self, entity_id: str, attrs: list[str], minutes: int) -> dict:
         since = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(minutes=minutes)

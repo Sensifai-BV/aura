@@ -83,6 +83,37 @@ def test_pending_expires():
     assert d.on_gesture("thumb_up", "confirm", 0.9, now=6.5).decision == REJECT
 
 
+def test_answer_window_starts_when_question_has_been_spoken():
+    d = Dialog(confirm_timeout_s=8.0)
+    d.on_voice("next", "next_step", "", 0.8, now=0.0)
+    d.on_speaking(True, now=0.3)
+    assert d.expire(9.0) is None  # the question is still playing
+    d.on_speaking(False, now=4.5)
+    assert d.expire(12.0) is None  # 7.5 s after the question
+    out = d.on_voice("yes", "confirm", "", 0.99, now=12.0)
+    assert out.decision == ACCEPT and out.correct
+
+
+def test_answer_window_expires_after_spoken_question():
+    d = Dialog(confirm_timeout_s=8.0)
+    d.on_speaking(False, now=-1.0)  # end of an earlier sentence, no question pending
+    d.on_voice("next", "next_step", "", 0.8, now=0.0)
+    d.on_speaking(False, now=0.1)  # a stale "false" before the question plays is ignored
+    assert d.pending.answer_from is None
+    d.on_speaking(True, now=0.2)
+    d.on_speaking(False, now=4.0)
+    assert d.expire(11.9) is None
+    assert d.expire(12.1).decision == REJECT
+
+
+def test_question_that_never_finishes_playing_is_dropped():
+    d = Dialog(confirm_timeout_s=8.0)
+    d.on_voice("next", "next_step", "", 0.8, now=0.0)
+    d.on_speaking(True, now=0.2)
+    assert d.expire(29.0) is None
+    assert d.expire(31.0).decision == REJECT
+
+
 def test_point_selects_pointed_target_with_confirmation():
     d = Dialog()
     out = d.on_gesture("point", "select", 0.9, now=0.0)

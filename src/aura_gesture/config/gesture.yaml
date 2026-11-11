@@ -18,7 +18,7 @@ aura_gesture:
     model_path: model/gesture/YOLOv10n_gestures.onnx
     model_id: ""            # defaults to the model file stem
     num_threads: 4
-    providers: ""           # e.g. "TensorrtExecutionProvider,CPUExecutionProvider"; empty = best available
+    providers: ""           # empty = CUDA, else CPU; e.g. "TensorrtExecutionProvider,CUDAExecutionProvider,CPUExecutionProvider"
     image_topic: /aura/camera/image_raw/compressed
     hypothesis_topic: /aura/gesture/hypothesis
     intent_topic: /aura/gesture/intent
@@ -30,9 +30,12 @@ aura_gesture:
     accept_threshold: 0.8
     gestures:   [thumb_up, thumb_down, fist,  palm,   point]
     intents:    [confirm,  reject,     stop,  cancel, select]
-    # Operating points from the offline A/B (FA <= 1% at 0.8); stop reacts faster.
-    thresholds: [0.8,      0.8,        0.7,   0.8,    0.8]
-    votes:      [5,        5,          3,     5,      5]
+    # Operating points from the offline A/B (FA <= 1% at 0.8). The threshold applies to each
+    # frame; votes = frames of the window at or above it. The confidence in GestureIntent is the
+    # window mean (frames without the gesture count 0), so it is lower than the threshold.
+    # Fist was 0.7 / 3 votes (~200 ms at 15 fps): a hand closing for a thumbs-up fired "stop".
+    thresholds: [0.8,      0.8,        0.8,   0.8,    0.8]
+    votes:      [5,        5,          5,     5,      5]
     cooldown_s: 1.0
     rearm_frames: 3
     max_frame_age_s: 0.5

@@ -42,6 +42,11 @@ ROS 2 nodes (Artaban, AURA modules)  ──DDS──▶  Orion-LD (-wip dds)  �
   WireCloud and the Grafana queries read both shapes.
 - `IntentEvent.decision`: 0 ACCEPT, 1 CONFIRM, 2 REJECT, 3 IGNORE. `outcome`: `correct` `recovered` `misrecognized`
   `false_activation` `rejected`; `correct` and `outcome` come from operator feedback (ground truth for calibration).
+- Robot feedback on an event: aura_intent cannot know that a stop was unintended or when the robot came to rest.
+  The robot adapter reports it by publishing the received `IntentEvent` again on `/aura/intent/event`, unchanged
+  except `outcome: false_activation` and/or `time_to_safe_stop_ms` (and `recovery_time_s`). aura-monitor matches
+  it by `mission_id` + `event_id` within 10 minutes and updates the original event instead of counting a new one;
+  the "False activations" and "Time-to-safe-stop" tiles use these values.
 - `BatteryState.percentage` is 0..1; `power_supply_status` 1 = charging.
 - Orion-LD returns `"` inside strings escaped as `\"`; consumers unescape.
 

@@ -40,7 +40,8 @@ class OnnxGestureDetector:
         options.intra_op_num_threads = num_threads
         options.inter_op_num_threads = 1
         available = ort.get_available_providers()
-        wanted = providers or ["TensorrtExecutionProvider", "CUDAExecutionProvider", "CPUExecutionProvider"]
+        # TensorRT builds an engine on first use and needs its own libraries; it is used only when listed.
+        wanted = providers or ["CUDAExecutionProvider", "CPUExecutionProvider"]
         self.session = ort.InferenceSession(str(path), options, providers=[p for p in wanted if p in available])
         self.input_name = self.session.get_inputs()[0].name
         shape = self.session.get_inputs()[0].shape

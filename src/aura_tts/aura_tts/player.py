@@ -7,6 +7,21 @@ import time
 import numpy as np
 
 
+def resample(samples, rate_in, rate_out):
+    """Band-limited (FFT) resampling of a whole clip; clips are a few seconds, so this is cheap."""
+    samples = np.asarray(samples, np.float32)
+    if rate_in == rate_out or len(samples) == 0:
+        return samples
+    n_out = max(1, round(len(samples) * rate_out / rate_in))
+    spectrum = np.fft.rfft(samples)
+    bins = n_out // 2 + 1
+    if len(spectrum) >= bins:
+        spectrum = spectrum[:bins]
+    else:
+        spectrum = np.concatenate((spectrum, np.zeros(bins - len(spectrum), spectrum.dtype)))
+    return (np.fft.irfft(spectrum, n_out) * (n_out / len(samples))).astype(np.float32)
+
+
 class NullPlayer:
     """No sound device (headless VM, tests): blocks for the clip duration, like playback would."""
 
@@ -38,11 +53,25 @@ class SoundDevicePlayer:
         self.gain = gain
         self.blocksize = blocksize
         self.sd.check_output_settings(device=self.device, channels=1, dtype="float32")
+        self._rates = {}  # model rate -> rate the device plays
+
+    def output_rate(self, sample_rate):
+        """The model's rate when the device accepts it, otherwise the device's default rate."""
+        if sample_rate not in self._rates:
+            try:
+                self.sd.check_output_settings(device=self.device, channels=1, dtype="float32",
+                                              samplerate=sample_rate)
+                self._rates[sample_rate] = sample_rate
+            except Exception:  # noqa: BLE001 - PortAudio reports unsupported rates with its own errors
+                info = self.sd.query_devices(self.device, "output")
+                self._rates[sample_rate] = int(info["default_samplerate"]) or 48000
+        return self._rates[sample_rate]
 
     def play(self, samples, sample_rate, cancelled=lambda: False):
         """Blocks until the clip ends; returns False when cancelled() turned true."""
-        data = np.clip(samples * self.gain, -1.0, 1.0).astype(np.float32)
-        with self.sd.OutputStream(samplerate=sample_rate, channels=1, dtype="float32",
+        rate = self.output_rate(sample_rate)
+        data = np.clip(resample(samples, sample_rate, rate) * self.gain, -1.0, 1.0).astype(np.float32)
+        with self.sd.OutputStream(samplerate=rate, channels=1, dtype="float32",
                                   device=self.device, blocksize=self.blocksize) as stream:
             for start in range(0, len(data), self.blocksize):
                 if cancelled():

@@ -1,0 +1,10 @@
+# Only the ROS packages and the entrypoint go into this image.
+*
+!src
+!docker/aura-ros2/entrypoint.sh
+src/aura_intent/training
+**/__pycache__
+**/.pytest_cache
+**/build
+**/install
+**/log

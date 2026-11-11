@@ -29,6 +29,13 @@ class ConfigTests(unittest.TestCase):
     def test_device_selection_and_environment_default(self):
         with patch.dict(os.environ, {"AURA_STT_MODEL_DIR": "/local/model"}):
             self.assertEqual(SttConfig.defaults()["model_dir"], "/local/model")
+            # the YAML's model_dir must not hide the environment
+            self.assertEqual(SttConfig.from_parameters({"model_dir": "model"}).model_dir, "/local/model")
+        with patch.dict(os.environ, {"AURA_STT_MODEL_DIR": ""}):
+            self.assertEqual(SttConfig.from_parameters({"model_dir": "model"}).model_dir, "model")
+        for values in ({"echo_tail_s": -0.1}, {"speaking_topic": 1}):
+            with self.subTest(values=values), self.assertRaises(ValueError):
+                SttConfig.from_mapping({"model_dir": "/local/model", **values})
         for requested, expected in (("", None), ("1", 1), ("USB microphone", "USB microphone")):
             self.assertEqual(SttConfig(input_device=requested).microphone_device, expected)
 

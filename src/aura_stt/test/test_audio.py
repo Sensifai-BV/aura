@@ -3,7 +3,7 @@ import unittest
 
 import numpy as np
 
-from aura_stt.audio import SampleBuffer, UtteranceSegmenter
+from aura_stt.audio import EchoGate, SampleBuffer, UtteranceSegmenter
 
 
 class AudioTests(unittest.TestCase):
@@ -64,6 +64,36 @@ class AudioTests(unittest.TestCase):
         self.assertIsNone(segmenter.active)
         for buffer in sessions:
             np.testing.assert_array_equal(buffer.read(0, 960), np.full(960, 0.1, dtype=np.float32))
+
+
+class EchoGateTests(unittest.TestCase):
+    def test_mutes_playback_and_tail_only(self):
+        gate = EchoGate(tail_s=0.4)
+        gate.speaking(True, now=10.0)
+        self.assertFalse(gate.muted(9.9))
+        self.assertTrue(gate.muted(11.0))  # still speaking
+        gate.speaking(False, now=12.0)
+        self.assertTrue(gate.muted(12.3))
+        self.assertFalse(gate.muted(12.5))  # the operator's "yes" after the question
+
+    def test_lagging_blocks_use_the_interval_of_their_capture(self):
+        gate = EchoGate(tail_s=0.4)
+        gate.speaking(True, now=1.0)
+        gate.speaking(False, now=2.0)
+        gate.speaking(True, now=5.0)  # a second sentence before old blocks are processed
+        self.assertTrue(gate.muted(1.5))
+        self.assertFalse(gate.muted(3.0))
+        self.assertTrue(gate.muted(6.0))
+
+    def test_repeated_states_and_pruning(self):
+        gate = EchoGate(tail_s=0.0, keep_s=10.0)
+        gate.speaking(False, now=0.0)
+        self.assertFalse(gate.muted(0.0))
+        gate.speaking(True, now=1.0)
+        gate.speaking(True, now=1.5)
+        gate.speaking(False, now=2.0)
+        gate.speaking(False, now=30.0)
+        self.assertFalse(gate.muted(1.2))  # pruned after keep_s
 
 
 if __name__ == "__main__":

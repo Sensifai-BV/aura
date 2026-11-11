@@ -11,6 +11,7 @@ aura_intent:
     environment_topic: /artaban/environment
     event_topic: /aura/intent/event
     speaker_topic: /aura/speaker/say
+    speaking_topic: /aura/speaker/speaking   # the answer window starts when the question has been spoken
     diagnostics_topic: /aura/intent/status
     # Model confidence = probability of the decoded intent label.
     accept_threshold: 0.72
@@ -19,7 +20,7 @@ aura_intent:
     # uncertain: only commands below accept_threshold ask; never: execute directly
     # stop / pause / cancel always execute at once.
     confirm_mode: always
-    confirm_timeout_s: 8.0
+    confirm_timeout_s: 12.0   # seconds to answer, counted from the end of the spoken question
     max_transcript_chars: 300
     operator_id: operator-01
     mission_id: ""          # empty: follow ArtabanStatus.mission_id

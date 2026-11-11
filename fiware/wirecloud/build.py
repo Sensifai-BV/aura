@@ -18,7 +18,7 @@ from xml.sax.saxutils import escape, quoteattr
 
 ROOT = Path(__file__).resolve().parent
 DIST = Path(sys.argv[1]) if len(sys.argv) > 1 else ROOT / "dist"
-VENDOR, VERSION = "Sensifai", "1.2.4"
+VENDOR, VERSION = "Sensifai", "1.2.5"
 NS = "http://wirecloud.conwet.fi.upm.es/ns/macdescription/1"
 AUTHOR, EMAIL = "Sensifai", "admin@sensifai.com"
 

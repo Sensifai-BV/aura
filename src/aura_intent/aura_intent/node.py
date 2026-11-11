@@ -16,7 +16,7 @@ from aura_interfaces.msg import ModuleStatus
 from rcl_interfaces.msg import ParameterDescriptor
 from rclpy.executors import ExternalShutdownException
 from rclpy.node import Node
-from std_msgs.msg import String
+from std_msgs.msg import Bool, String
 
 from aura_interfaces.msg import ArtabanStatus, EnvironmentReading, GestureIntent, IntentEvent
 
@@ -60,6 +60,8 @@ class IntentNode(Node):
         self.diagnostics_pub = self.create_publisher(ModuleStatus, config.diagnostics_topic, 10)
         self.create_subscription(String, config.transcript_topic, self._on_transcript, 10)
         self.create_subscription(GestureIntent, config.gesture_topic, self._on_gesture, 50)
+        if config.speaking_topic:
+            self.create_subscription(Bool, config.speaking_topic, self._on_speaking, 10)
         self.create_subscription(ArtabanStatus, config.status_topic, self._on_status, 10)
         self.create_subscription(EnvironmentReading, config.environment_topic, self._on_environment, 10)
         self.create_timer(0.02, self._publish)
@@ -93,6 +95,10 @@ class IntentNode(Node):
             self._publish_decision(expired, 0.0)
         if decision is not None:
             self._publish_decision(decision, (now - stamp) * 1000 if stamp > 0 else 0.0)
+
+    def _on_speaking(self, msg):
+        with self.lock:
+            self.dialog.on_speaking(bool(msg.data), time.time())
 
     def _on_status(self, msg):
         if not self.config.mission_id and msg.mission_id:

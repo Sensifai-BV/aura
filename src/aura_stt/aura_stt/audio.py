@@ -54,6 +54,41 @@ class SampleBuffer:
             self._cv.notify_all()
 
 
+class EchoGate:
+    """Mute the microphone while the robot's own speaker plays.
+
+    aura_tts publishes ``speaking`` true/false. Audio captured from the start of
+    playback until ``tail_s`` after its end is replaced by silence before it
+    reaches the segmenter, so the robot's own words never become a transcript and
+    an operator answer right after a question starts a fresh utterance. Times are
+    ``time.monotonic()`` of capture; the segmenter thread may lag behind, so
+    the recent speaking intervals are kept rather than only the current state.
+    """
+
+    def __init__(self, tail_s=0.4, keep_s=30.0):
+        self.tail_s = tail_s
+        self.keep_s = keep_s
+        self._lock = threading.Lock()
+        self._intervals = deque()  # [start, end or None]
+
+    def speaking(self, active, now=None):
+        now = time.monotonic() if now is None else now
+        with self._lock:
+            current = self._intervals[-1] if self._intervals else None
+            if active and (current is None or current[1] is not None):
+                self._intervals.append([now, None])
+            elif not active and current is not None and current[1] is None:
+                current[1] = now
+            while self._intervals and self._intervals[0][1] is not None \
+                    and now - self._intervals[0][1] > self.keep_s:
+                self._intervals.popleft()
+
+    def muted(self, t):
+        with self._lock:
+            return any(start <= t and (end is None or t <= end + self.tail_s)
+                       for start, end in self._intervals)
+
+
 class UtteranceSegmenter:
     """Open a live buffer on speech, close on silence or a duration limit.
 

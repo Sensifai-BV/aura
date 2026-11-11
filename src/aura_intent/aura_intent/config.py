@@ -32,11 +32,12 @@ class IntentConfig:
     environment_topic: str = "/artaban/environment"
     event_topic: str = "/aura/intent/event"
     speaker_topic: str = "/aura/speaker/say"
+    speaking_topic: str = "/aura/speaker/speaking"  # aura_tts playback state; "" = time from the question
     diagnostics_topic: str = "/aura/intent/status"
     accept_threshold: float = 0.72
     reject_threshold: float = 0.52
     confirm_mode: str = "always"  # always | uncertain | never; stop/pause/cancel never wait
-    confirm_timeout_s: float = 8.0
+    confirm_timeout_s: float = 12.0  # counted from the end of the spoken question
     max_transcript_chars: int = 300
     operator_id: str = "operator-01"
     mission_id: str = ""  # empty: taken from ArtabanStatus.mission_id
@@ -59,6 +60,8 @@ class IntentConfig:
                      "diagnostics_topic", "session_prefix"):
             if not isinstance(getattr(self, name), str) or not getattr(self, name).strip():
                 raise ValueError(f"{name} must be a non-empty string")
+        if not isinstance(self.speaking_topic, str):
+            raise ValueError("speaking_topic must be a string (empty disables it)")
         if type(self.num_threads) is not int or self.num_threads <= 0:
             raise ValueError("num_threads must be a positive integer")
         for name in ("accept_threshold", "reject_threshold"):

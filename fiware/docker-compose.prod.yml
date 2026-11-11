@@ -1,7 +1,7 @@
 # AURA x ARISE middleware - PRODUCTION (Coolify, server-2, project "aura", environment "production").
 #
 #   Real Artaban robot  --DDS domain 0--> orion      -> mintaka      -> aura-monitor   -> WireCloud dashboard "Aura"
-#   Simulator / tests   --DDS domain 1--> orion-sim  -> mintaka-sim  -> monitor-sim    -> WireCloud dashboard "Simulator"
+#   Test publishers     --DDS domain 1--> orion-sim  -> mintaka-sim  -> monitor-sim    -> WireCloud dashboard "Simulator"
 #
 # Both dashboards use the same widgets; they differ only in which broker they read (see wirecloud/build.py).
 # Mongo and TimescaleDB are shared: each Orion-LD keeps its own database (orion / orion_sim), so the two data planes
@@ -15,8 +15,8 @@
 #
 # Robot link (domain 0): TCP 11800 -> ddsrouter (TLS), which bridges to Orion-LD inside the Docker network. Restrict
 # 11800 to the robot's address at the host / cloud firewall (the TLS here authenticates the server, not the client).
-# Simulator (domain 1, for external test publishers): UDP 7650, 7660-7669 on orion-sim (Fast DDS default mapping); DDS has
-# no authentication, so restrict these to the tester's address as well.
+# Simulator (domain 1): TCP 11801 -> ddsrouter-sim (TLS, same CA as the robot link) -> orion-sim. Test and integration
+# publishers connect from anywhere as a DDS Router client (tools/sim_link); nothing on the server generates data.
 name: aura-arise
 
 x-logging: &logging
@@ -177,9 +177,7 @@ services:
       ORIONLD_TROE_PORT: "5432"
       ORIONLD_TROE_USER: orion
       ORIONLD_TROE_PWD: ${SERVICE_PASSWORD_POSTGRES}
-    ports:
-      - "7650:7650/udp"
-      - "7660-7669:7660-7669/udp"
+    # no published DDS ports: test publishers reach this broker through "ddsrouter-sim"
     healthcheck:
       test: ["CMD-SHELL", "curl -fs http://localhost:1026/version || exit 1"]
       interval: 15s
@@ -225,23 +223,30 @@ services:
       MONITOR_NOTIFY_URL: http://monitor-sim:8090/ngsi-ld/notify
     <<: *logging
 
-  # Generated Artaban + AURA telemetry on DDS domain 1 for the Simulator dashboard (test and debug). Stop it when an
-  # external simulator publishes instead. It discovers orion-sim by unicast (no multicast on the shared Docker bridge).
-  artaban-sim:
+  # WAN link for test and integration publishers (Simulator plane, DDS domain 1): the same DDS Router as the robot link,
+  # on its own port. It reuses the robot link's certificate (read-only volume), so one CA serves both links.
+  ddsrouter-sim:
     build:
       context: ..
-      dockerfile: fiware/ros2/Dockerfile
+      dockerfile: fiware/deploy/ddsrouter.Dockerfile
     restart: unless-stopped
-    mem_limit: 384m
-    cpus: 0.3
+    mem_limit: 256m
+    cpus: 0.5
     depends_on:
       orion-sim: { condition: service_healthy }
+      ddsrouter: { condition: service_started }
     environment:
-      ROS_DOMAIN_ID: "1"
-      ROS_STATIC_PEERS: orion-sim
-      SIM_RATE_HZ: "1"
-      SIM_MISSION_MINUTES: "12"
-      SIM_TOPICS: all
+      ROLE: server
+      DDS_DOMAIN: "1"
+      DDS_CONFIG: /etc/aura/config-dds-sim.json
+      LOCAL_PEERS: orion-sim
+      WAN_PORT: "11801"
+      TLS_SAN: ${DDS_TLS_SAN:-DNS:aura-dds.sensifai.com,IP:95.217.135.234}
+      PUBLIC_ADDRESS: ${DDS_PUBLIC_ADDRESS:-95.217.135.234}
+    ports:
+      - "11801:11801/tcp"
+    volumes:
+      - ddsrouter-data:/data:ro
     <<: *logging
 
   # ------------------------------------------------------------------ Grafana (ARISE standard dashboards, Aura data)
@@ -333,7 +338,7 @@ services:
       wirecloud:
         condition: service_healthy
     environment:
-      AURA_VERSION: "1.2.4"                      # keep equal to VERSION in wirecloud/build.py
+      AURA_VERSION: "1.2.5"                      # keep equal to VERSION in wirecloud/build.py
       AURA_RECREATE_WORKSPACE: ${AURA_RECREATE_WORKSPACE:-0}
       ARISE_PUBLIC_URL: ${ARISE_PUBLIC_URL:-https://aura-dash.sensifai.com}
       WIRECLOUD_ADMIN_USER: ${ARISE_ADMIN_USER:-arise-admin}

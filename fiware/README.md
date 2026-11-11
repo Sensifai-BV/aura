@@ -37,6 +37,10 @@ docker compose up -d --build
 
 This is the local development stack (one broker, default logins). The **production** deployment on Coolify has two
 brokers, two dashboards (Aura and Simulator). How a robot connects over DDS: [docs/DDS_INTEGRATION.md](docs/DDS_INTEGRATION.md).
+The Simulator dashboard has no data generator on the server: test and integration data comes from outside over its
+own DDS Router port (TCP 11801, DDS domain 1, same TLS CA as the robot link), for example the mock publisher:
+`tools/sim_link/run.sh` (600 s of mock Artaban + AURA data) or `tools/sim_link/run.sh link` (only the link, for your own
+publishers). The real robot plane (domain 0, port 11800) never sees this data.
 
 A mission takes about 10 minutes, followed by charging at the dock. Each finished mission produces a
 `MissionReport` entity and an HTML report at `http://localhost:8090/reports/<missionId>`.
