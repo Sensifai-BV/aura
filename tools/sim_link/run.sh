@@ -20,6 +20,10 @@ NETWORK=${NETWORK:-aura-sim-link}
 DOMAIN=${DOMAIN:-1}   # both ends of the link must use the same domain: 1 = Simulator plane on the server
 MAPPING=/etc/aura/config-dds-sim.json; [ "$DOMAIN" = 1 ] || MAPPING=/etc/aura/config-dds.json
 
+if docker ps --format '{{.Names}}' | grep -qx aura-sim-mock; then
+  echo "a mock run is already active (container aura-sim-mock); wait for it or: docker rm -f aura-sim-mock aura-sim-link"
+  exit 1
+fi
 docker image inspect "$IMAGE" >/dev/null 2>&1 || docker build -f fiware/deploy/ddsrouter.Dockerfile -t "$IMAGE" .
 [ "${CHECK:-1}" = 0 ] || nc -z -w 6 "$SERVER" "$PORT" || { echo "cannot reach $SERVER:$PORT (TCP)"; exit 1; }
 docker network create "$NETWORK" >/dev/null 2>&1 || true
