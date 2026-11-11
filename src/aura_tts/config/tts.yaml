@@ -15,12 +15,23 @@ aura_tts:
     output_device: ""       # "" = default output, an index or name, "none" = no sound device (headless)
     gain: 1.0
     normalize_text: true    # spell equipment tags (V-104 -> vee one zero four), expand units and numbers
-    # Synthesised at start-up: these play with no synthesis delay. Match aura_intent/dialog.py.
+    # Synthesised at start-up: these play with no synthesis delay. Must equal aura_intent.dialog.FIXED_PHRASES (aura_intent test_dialog checks).
     cache_phrases:
       - "Stop, executing."
       - "Pause, executing."
       - "Cancel, executing."
       - "Resume, executing."
+      - "Next step, executing."
+      - "Come follow, executing."
+      - "Go to pointed target, executing."
+      - "Did you say resume?"
+      - "Did you say next step?"
+      - "Did you say come follow?"
+      - "Did you say go to pointed target?"
+      - "Cancelled resume."
+      - "Cancelled next step."
+      - "Cancelled come follow."
+      - "Cancelled go to pointed target."
       - "Sorry, I did not understand. Please repeat."
       - "There is nothing to confirm."
       - "Sorry, I cannot do that."

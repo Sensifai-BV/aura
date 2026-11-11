@@ -133,7 +133,7 @@ class Mock:
         elif kind == 1:
             self.heard("next waypoint")
             ev = self.event("next_step", CONFIRM, "next waypoint", confidence=0.97)
-            self.say("Did you say next step? Say yes or show thumb up.")
+            self.say("Did you say next step?")
             time.sleep(5)
             self.heard("yes")
             self.event("next_step", ACCEPT, "next waypoint", confidence=0.97, outcome="correct", correct=True)
@@ -141,7 +141,7 @@ class Mock:
         elif kind == 2:
             self.heard("follow me")
             self.event("come_follow", CONFIRM, "follow me", confidence=0.96)
-            self.say("Did you say come follow? Say yes or show thumb up.")
+            self.say("Did you say come follow?")
             time.sleep(5)
             self.gesture("thumb_up", "confirm", 0.62)
             self.event("come_follow", ACCEPT, "follow me", gesture="thumb_up", modality="fused", confidence=0.96,

@@ -12,8 +12,9 @@ SAMPLE_RATE = 16000
 class SampleBuffer:
     """Overlapping reads use absolute sample positions, including left padding."""
 
-    def __init__(self, capacity):
+    def __init__(self, capacity, record=False):
         self.capacity = capacity
+        self.recording = [] if record else None  # every block written, for record_audio
         self._cv = threading.Condition()
         self._data = np.empty(0, dtype=np.float32)
         self._start = 0
@@ -28,6 +29,8 @@ class SampleBuffer:
             if len(self._data) + len(block) > self.capacity:
                 raise BufferError("ASR audio backlog exceeded capacity")
             self._data = np.concatenate((self._data, block))
+            if self.recording is not None:
+                self.recording.append(block)
             self._cv.notify_all()
 
     def read(self, start, count):
@@ -89,6 +92,16 @@ class EchoGate:
             return any(start <= t and (end is None or t <= end + self.tail_s)
                        for start, end in self._intervals)
 
+    def intervals(self, t0, t1):
+        """Speaking intervals (start, end + tail) that overlap [t0, t1]; an open one ends at t1."""
+        with self._lock:
+            out = []
+            for start, end in self._intervals:
+                stop = t1 if end is None else end + self.tail_s
+                if start <= t1 and stop >= t0:
+                    out.append((start, stop))
+            return out
+
 
 class UtteranceSegmenter:
     """Open a live buffer on speech, close on silence or a duration limit.
@@ -98,7 +111,7 @@ class UtteranceSegmenter:
     """
 
     def __init__(self, on_start, threshold_db=-40.0, silence_s=0.8,
-                 pre_roll_s=0.3, max_utterance_s=20.0, tail_s=1.2):
+                 pre_roll_s=0.3, max_utterance_s=20.0, tail_s=1.2, record=False):
         if not np.isfinite(threshold_db) or not -100 <= threshold_db <= 0:
             raise ValueError("threshold_db must be between -100 and 0")
         if not all(np.isfinite(v) for v in
@@ -107,6 +120,7 @@ class UtteranceSegmenter:
         if silence_s <= 0 or pre_roll_s < 0 or max_utterance_s <= silence_s or tail_s < 0:
             raise ValueError("Invalid endpoint durations")
         self.on_start = on_start
+        self.record = record
         self.threshold = 10 ** (threshold_db / 20)
         self.silence_limit = int(silence_s * SAMPLE_RATE)
         self.pre_roll_limit = int(pre_roll_s * SAMPLE_RATE)
@@ -133,7 +147,7 @@ class UtteranceSegmenter:
                         self.history.appendleft(oldest[removed:])
                     self.history_samples -= removed
                 return
-            self.active = SampleBuffer(self.capacity)
+            self.active = SampleBuffer(self.capacity, record=self.record)
             for previous in self.history:
                 self.active.write(previous)
             self.active.write(block)

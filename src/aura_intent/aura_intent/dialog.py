@@ -6,7 +6,13 @@ speaker asks the operator to confirm (voice "yes" / "no" or thumb up / down),
 unless confirm_mode lets a confident command through.
 Gesture: aura_gesture already applied its temporal acceptance, so its intents
 answer a pending question or act directly (fist = stop, palm = cancel,
-point = select the pointed target).
+point = select the pointed target). A thumb up / down with no question pending
+is ignored without speech: in the field these were unintended, and every
+robot sentence is time in which the operator has to talk over the robot.
+
+Prompts are short ("Did you say come follow?") and hold no answer word, so the
+echo filter of aura_stt can remove the question without removing the operator's
+"yes" or "stop" said over it.
 
 Outcomes follow fiware/docs/DATA_MODEL.md: an executed confirmation is operator
 ground truth ("correct"); a "no" to the question marks the held command
@@ -29,6 +35,24 @@ SPOKEN = {"next_step": "next step", "target_select": "go to", "come_follow": "co
 
 def spoken(intent, target=""):
     return f"{SPOKEN.get(intent, intent.replace('_', ' '))} {target}".strip()
+
+
+def question(intent, target=""):
+    return f"Did you say {spoken(intent, target)}?"
+
+
+def executing(intent, target=""):
+    return f"{spoken(intent, target).capitalize()}, executing."
+
+
+# Fixed sentences, synthesised by aura_tts at start-up (keep its cache_phrases in step: test_dialog checks).
+FIXED_PHRASES = tuple(
+    [executing(i) for i in ("stop", "pause", "cancel", "resume", "next_step", "come_follow")]
+    + [executing("target_select", "pointed target")]
+    + [question(i) for i in ("resume", "next_step", "come_follow")] + [question("target_select", "pointed target")]
+    + [f"Cancelled {spoken(i)}." for i in ("resume", "next_step", "come_follow")]
+    + ["Cancelled go to pointed target.", "Sorry, I did not understand. Please repeat.",
+       "There is nothing to confirm.", "Sorry, I cannot do that.", "No answer, command dropped."])
 
 
 @dataclass
@@ -106,8 +130,7 @@ class Dialog:
         if intent in ANSWERS and self.pending is not None:
             return self._answer(intent == "confirm", "gesture", confidence, gesture=gesture, now=now)
         if intent == "confirm" or gesture_intent == "reject":
-            return Decision(intent, REJECT, confidence, "gesture", gesture=gesture, outcome="rejected",
-                            say="There is nothing to confirm.")
+            return Decision(intent, IGNORE, confidence, "gesture", gesture=gesture, engaged=False)
         target = "pointed target" if intent == "target_select" else ""
         return self._command(intent, target, confidence, "gesture", now, gesture=gesture)
 
@@ -141,13 +164,12 @@ class Dialog:
         base = dict(confidence=confidence, modality=modality, utterance=utterance, gesture=gesture, target=target)
         if intent in SAFETY_CRITICAL:
             self.pending = None
-            return Decision(intent, ACCEPT, say=f"{spoken(intent).capitalize()}, executing.", **base)
+            return Decision(intent, ACCEPT, say=executing(intent), **base)
         if self.confirm_mode == "always" or (
                 self.confirm_mode == "uncertain" and confidence < self.accept_threshold):
             self.pending = Pending(intent, target, confidence, modality, utterance, gesture, now)
-            return Decision(intent, CONFIRM, say=f"Did you say {spoken(intent, target)}? "
-                                                 "Say yes or show thumb up.", **base)
-        return Decision(intent, ACCEPT, say=f"{spoken(intent, target).capitalize()}, executing.", **base)
+            return Decision(intent, CONFIRM, say=question(intent, target), **base)
+        return Decision(intent, ACCEPT, say=executing(intent, target), **base)
 
     def _answer(self, yes, modality, confidence, utterance="", gesture="", now=None):
         p, self.pending = self.pending, None
@@ -157,6 +179,6 @@ class Dialog:
                             "fused" if modality != p.modality else modality, target=p.target,
                             utterance=p.utterance or utterance, gesture=gesture or p.gesture,
                             outcome="correct", correct=True, answer_s=answer_s,
-                            say=f"{spoken(p.intent, p.target).capitalize()}, executing.")
+                            say=executing(p.intent, p.target))
         return Decision("cancel", ACCEPT, confidence, modality, utterance=utterance, gesture=gesture,
                         target=p.target, outcome="misrecognized", answer_s=answer_s, say=f"Cancelled {spoken(p.intent, p.target)}.")

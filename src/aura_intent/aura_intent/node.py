@@ -47,6 +47,7 @@ class IntentNode(Node):
         self.config = config = IntentConfig.from_mapping(
             {name: self.get_parameter(name).value for name in defaults})
         self.mission_id = config.mission_id
+        self.session_prefix = config.session_prefix or time.strftime("S%d%H%M%S", time.gmtime())
         model_path = resolve_model_path(config.model_path)
         self.model_id = config.model_id or model_path.stem
         self.get_logger().info(f"Loading intent model {model_path}")
@@ -75,6 +76,8 @@ class IntentNode(Node):
                 "event_id", "mission_id", "decision", "intent", "target", "modality", "confidence", "latency_ms",
                 "parse_ms", "answer_s", "utterance", "gesture", "outcome", "correct", "say", "safety_critical", "engaged",
                 "noise_db", "acoustic_condition", "accept_threshold", "reject_threshold", "model_id"])
+            self.metrics.summary = self._summary
+            self.create_timer(5.0, self.metrics.tick)  # summary survives a kill
             self.get_logger().info(f"debug: metrics to {self.metrics.path}")
         self.thread = threading.Thread(target=self._parse, name="aura-intent", daemon=True)
         self.thread.start()
@@ -172,7 +175,7 @@ class IntentNode(Node):
         msg = IntentEvent()
         msg.header.stamp = self.get_clock().now().to_msg()
         msg.header.frame_id = "aura_intent"
-        msg.event_id = f"{cfg.session_prefix}-{self.counter:04d}"
+        msg.event_id = f"{self.session_prefix}-{self.counter:04d}"
         msg.mission_id = self.mission_id
         msg.intent = d.intent if d.engaged else "unknown"
         msg.utterance = d.utterance
@@ -240,7 +243,7 @@ class IntentNode(Node):
             if self.thread.is_alive():
                 self.get_logger().warning("Parser worker did not finish within shutdown timeout")
         if self.metrics is not None:
-            self.get_logger().info(f"debug: metrics summary in {self.metrics.close(self._summary())}")
+            self.get_logger().info(f"debug: metrics summary in {self.metrics.close()}")
 
     def _summary(self):
         m = self.metrics

@@ -14,10 +14,15 @@ def launch_node(context):
         parameters.append({"latency_ms": int(latency)})
     if LaunchConfiguration("debug").perform(context).lower() == "true":
         parameters.append({"debug": True})
-    for name in ("input_device", "device", "metrics_dir"):
+    for name in ("input_device", "device", "metrics_dir", "echo_mode"):
         value = LaunchConfiguration(name).perform(context)
         if value:
             parameters.append({name: value})
+    tail = LaunchConfiguration("echo_tail_s").perform(context)
+    if tail:
+        parameters.append({"echo_tail_s": float(tail)})
+    if LaunchConfiguration("record_audio").perform(context).lower() == "true":
+        parameters.append({"record_audio": True})
     return [Node(package="aura_stt", executable="stt", name="aura_stt",
                  output="screen", parameters=parameters)]
 
@@ -35,5 +40,11 @@ def generate_launch_description():
         DeclareLaunchArgument("metrics_dir", default_value="", description="Override YAML metrics_dir"),
         DeclareLaunchArgument("device", default_value="",
                               description="Override YAML ASR device: auto, cpu, mps, cuda or cuda:<index>"),
+        DeclareLaunchArgument("echo_mode", default_value="",
+                              description="Override YAML echo_mode: filter (hear the operator while the robot talks) or mute"),
+        DeclareLaunchArgument("echo_tail_s", default_value="",
+                              description="Override YAML echo_tail_s (seconds after robot speech still treated as echo)"),
+        DeclareLaunchArgument("record_audio", default_value="false",
+                              description="Save every utterance as a WAV in <metrics_dir>/audio"),
         OpaqueFunction(function=launch_node),
     ])

@@ -41,7 +41,9 @@ class IntentConfig:
     max_transcript_chars: int = 300
     operator_id: str = "operator-01"
     mission_id: str = ""  # empty: taken from ArtabanStatus.mission_id
-    session_prefix: str = "S001"  # event_id = <prefix>-<counter>
+    # event_id = <prefix>-<counter>. "" = S<day><hhmmss> of the node start (UTC), so a restart in the same
+    # mission never repeats an event_id (the robot adapter and aura-monitor match republished events on it).
+    session_prefix: str = ""
     noise_threshold_db: float = 80.0  # la_eq above this -> acoustic_condition "noise"
     diagnostics_period_s: float = 1.0
     debug: bool = False                 # write one CSV row per decision and a summary (metrics.py)
@@ -59,9 +61,11 @@ class IntentConfig:
 
     def validate(self):
         for name in ("model_path", "transcript_topic", "gesture_topic", "event_topic", "speaker_topic",
-                     "diagnostics_topic", "session_prefix"):
+                     "diagnostics_topic"):
             if not isinstance(getattr(self, name), str) or not getattr(self, name).strip():
                 raise ValueError(f"{name} must be a non-empty string")
+        if not isinstance(self.session_prefix, str) or self.session_prefix != self.session_prefix.strip():
+            raise ValueError("session_prefix must be a string without spaces at the ends (\"\" = automatic)")
         if type(self.debug) is not bool or not isinstance(self.metrics_dir, str) or not self.metrics_dir.strip():
             raise ValueError("debug must be true or false and metrics_dir a non-empty path")
         if not isinstance(self.speaking_topic, str):

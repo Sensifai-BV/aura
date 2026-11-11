@@ -53,7 +53,8 @@ how a robot connects to the broker over DDS (ports, discovery, how to run and ch
 ## Debug metrics for experiment reports
 
 Every module records its own measurements when started with `debug:=true` (launch) or `-p debug:=true` (`ros2 run`):
-one CSV row per event, flushed at once, and a summary when the node shuts down (Ctrl+C). Files go to `metrics_dir`
+one CSV row per event, flushed at once, and a summary rewritten every 30 s and when the node shuts down, so a
+node stopped without SIGINT (`docker stop` of `ros2 run`) still leaves a summary. Files go to `metrics_dir`
 (default `aura_metrics/`, relative to the working directory) as `<module>_<UTC start>.csv` and `..._summary.csv`
 (`metric, value, unit, note`). Nothing changes on the ROS topics.
 
@@ -66,7 +67,7 @@ ros2 launch aura_gesture gesture.launch.py debug:=true metrics_dir:=/data/aura_m
 
 | Module | One row per | Columns | Summary |
 | --- | --- | --- | --- |
-| `aura_stt` | utterance (also empty decodes of noise) | text, words, speech_s, final_latency_ms (end of speech → final), first_partial_ms, partials, robot_spoke_s (muted by the echo gate inside it) | utterances, empty decodes, echo-gate time, final latency / first partial / speech duration (count, mean, p50, p95, max) |
+| `aura_stt` | utterance (also empty decodes of noise) | text, words, speech_s, final_latency_ms (end of speech → final), first_partial_ms, partials, robot_spoke_s (robot speech inside it), forwarded (text sent after echo removal), echo_removed, early_safety, audio_file | utterances, empty decodes, echo dropped / forwarded / early stops (filter) or muted time (mute), final latency / first partial / speech duration (count, mean, p50, p95, max) |
 | `aura_intent` | decision (IntentEvent) | event_id, decision, intent, target, modality, confidence, latency_ms, parse_ms (LLM), answer_s (end of the question → answer), utterance, gesture, outcome, say, thresholds | decisions by type, questions asked / answered yes / no / timed out, answer rate, safety commands, confidence, decision latency, inference time, answer time |
 | `aura_gesture` | accepted gesture | gesture, intent, confidence (window mean), frame_confidence, threshold, votes, latency_ms, inference_ms, provider | frames received / processed / dropped / stale, fps, accepted per gesture with mean confidence, inference and latency per frame |
 | `aura_tts` | prompt | text, cached, first_audio_ms (prompt → playback), synth_ms, audio_s, interrupted, error | prompts, cached, interrupted, first audio (all / synthesised / cached), synthesis time |
@@ -228,13 +229,17 @@ stop the node with an error. Ctrl+C closes capture and unblocks readers;
 an incomplete phrase at shutdown may be discarded.
 Grant microphone access to the application running the node when required.
 
-Echo gate: STT subscribes to `/aura/speaker/speaking` (`speaking_topic`) and replaces
-the audio captured while the robot speaks, and for `echo_tail_s` (0.4 s) after, with
-silence, so the robot never transcribes its own voice and an answer right after a
-question starts a new utterance. A voice command said while the robot is talking is
-not heard; the fist gesture still stops the robot. `AURA_STT_MODEL_DIR`, when set,
+Robot speech in the microphone: STT follows `/aura/speaker/speaking` (`speaking_topic`).
+With `echo_mode: filter` (default) the microphone stays open; for an utterance that
+overlaps robot speech, the words of the sentences sent to `/aura/speaker/say`
+(`robot_text_topic`) are removed and only the operator's words are forwarded, so the robot
+never acts on its own "Stop, executing." but hears a "stop" said over a question. A stop
+or pause is sent from the partial transcript at once instead of waiting for the robot to
+finish. `echo_mode: mute` restores the earlier behaviour (audio replaced by silence while
+the robot speaks and `echo_tail_s` after; a command said then is lost). `record_audio: true`
+saves every utterance as a WAV in `<metrics_dir>/audio`. `AURA_STT_MODEL_DIR`, when set,
 takes precedence over `model_dir`. Launch overrides: `latency_ms`, `input_device`,
-`device` (also `n_gpu_layers` for aura_intent and `providers` for aura_gesture).
+`device`, `echo_mode`, `echo_tail_s`, `record_audio` (STT; also `n_gpu_layers` for aura_intent and `providers` for aura_gesture).
 
 Validate audio buffering and endpoints without ROS2:
 
@@ -286,7 +291,7 @@ intent set and its sequence probability is the command confidence:
 | `stop`, `pause` | "Stop, there's a worker ahead" | safety-critical: executes at once |
 | `cancel` | "never mind" | answers "no" to a pending question, otherwise cancels at once |
 | `confirm` | "yes, do it" | answers "yes" to a pending question |
-| `resume`, `next_step`, `come_follow` | "follow me" | held: "Did you say come follow? Say yes or show thumb up." |
+| `resume`, `next_step`, `come_follow` | "follow me" | held: "Did you say come follow?" |
 | `target_select` | "inspect valve seven" (target `valve seven`) | held as above |
 | `unknown` | "open the valve" | addressed but unsupported: rejected with feedback |
 | `none` | "Mike, follow the red line" | not addressed to the robot: `IGNORE`, no speech |

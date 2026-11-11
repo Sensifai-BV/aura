@@ -35,7 +35,9 @@ aura_gesture:
     # window mean (frames without the gesture count 0), so it is lower than the threshold.
     # Fist was 0.7 / 3 votes (~200 ms at 15 fps): a hand closing for a thumbs-up fired "stop".
     thresholds: [0.8,      0.8,        0.8,   0.8,    0.8]
-    votes:      [5,        5,          5,     5,      5]
+    # palm and point need 6 of 8 frames: on 11 Nov both fired unintended (palm at 0.78/0.81) while every
+    # deliberate fist passed with 5 of 8. Thumbs only answer questions (ignored when none is pending).
+    votes:      [5,        5,          5,     6,      6]
     cooldown_s: 1.0
     rearm_frames: 3
     max_frame_age_s: 0.5

@@ -7,10 +7,26 @@ from pathlib import Path
 
 # Fixed prompts of aura_intent/dialog.py, synthesised at start-up so the
 # safety acknowledgements play without synthesis delay.
-DEFAULT_PHRASES = (
-    "Stop, executing.", "Pause, executing.", "Cancel, executing.", "Resume, executing.",
-    "Sorry, I did not understand. Please repeat.", "There is nothing to confirm.",
-    "Sorry, I cannot do that.", "No answer, command dropped.",
+DEFAULT_PHRASES = (  # = aura_intent.dialog.FIXED_PHRASES (checked by aura_intent's test_dialog)
+    "Stop, executing.",
+    "Pause, executing.",
+    "Cancel, executing.",
+    "Resume, executing.",
+    "Next step, executing.",
+    "Come follow, executing.",
+    "Go to pointed target, executing.",
+    "Did you say resume?",
+    "Did you say next step?",
+    "Did you say come follow?",
+    "Did you say go to pointed target?",
+    "Cancelled resume.",
+    "Cancelled next step.",
+    "Cancelled come follow.",
+    "Cancelled go to pointed target.",
+    "Sorry, I did not understand. Please repeat.",
+    "There is nothing to confirm.",
+    "Sorry, I cannot do that.",
+    "No answer, command dropped.",
 )
 
 

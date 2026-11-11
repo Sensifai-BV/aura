@@ -10,10 +10,18 @@ Output: fiware/grafana/dashboards/*.json (provisioned read-only into Grafana).
 """
 from __future__ import annotations
 
+import importlib.util
 import json
 from pathlib import Path
 
 OUT = Path(__file__).resolve().parent / "dashboards"
+
+# Intent-event merge SQL, shared with the monitor (dependency-free module, loaded by path).
+_spec = importlib.util.spec_from_file_location(
+    "intent_sql", Path(__file__).resolve().parents[1] / "monitor" / "aura_monitor" / "intent_sql.py")
+_intent_sql = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(_intent_sql)
+merged_intent_events = _intent_sql.merged_intent_events
 CONSOLE = "http://localhost:8000/admin/aura"   # AURA dashboard in WireCloud
 REPORTS_URL = "http://localhost:8090"          # aura-monitor serves printable mission reports
 
@@ -125,9 +133,12 @@ def sql_jlatest(entity: str, name: str, expr: str, alias: str) -> str:
     )
 
 
+# One row per decision: the robot adapter re-publishes an IntentEvent (same event_id and stamp) to add a false
+# activation or the time to safe stop; counting raw TROE rows would count that stop two or three times.
+# The merge SQL is shared with the monitor's aura_intent_events view and inlined, so panels work without it.
 EVENTS = (
-    f"FROM attributes\n"
-    f"WHERE entityid = '{INTENT}' AND {attr('intentEvent')} AND {TF}"
+    f"FROM ({merged_intent_events(attr('intentEvent'))}) AS intent_events\n"
+    f"WHERE {TF}"
 )
 SUCCESS = "CASE WHEN compound->>'outcome' IN ('correct','recovered') THEN 1.0 ELSE 0.0 END"
 DECIDED = "(compound->>'decision')::int <> 3"

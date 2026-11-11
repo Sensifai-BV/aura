@@ -80,7 +80,7 @@ def test_pending_expires():
     assert d.expire(4.0) is None
     out = d.expire(6.0)
     assert out.decision == REJECT and out.intent == "next_step" and d.pending is None
-    assert d.on_gesture("thumb_up", "confirm", 0.9, now=6.5).decision == REJECT
+    assert d.on_gesture("thumb_up", "confirm", 0.9, now=6.5).decision == IGNORE
 
 
 def test_answer_window_starts_when_question_has_been_spoken():
@@ -145,3 +145,27 @@ def test_invalid_settings():
 def test_answer_format():
     assert json.loads(answer("target_select", "pump 3")) == {"intent": "target_select", "target": "pump 3"}
     assert NONE in LABELS and len(set(LABELS)) == len(LABELS)
+
+
+@pytest.mark.parametrize("gesture,intent", [("thumb_up", "confirm"), ("thumb_down", "reject")])
+def test_thumb_with_nothing_pending_is_ignored_silently(gesture, intent):
+    out = Dialog().on_gesture(gesture, intent, 0.9, now=0.0)
+    assert out.decision == IGNORE and out.say == "" and not out.engaged and out.gesture == gesture
+
+
+def test_question_is_short_and_holds_no_answer_word():
+    d = Dialog()
+    say = d.on_voice("follow me", "come_follow", "", 0.99, now=0.0).say
+    assert say == "Did you say come follow?"
+    assert not {"yes", "no", "stop", "pause", "cancel"} & set(say.lower().strip("?").split())
+
+
+def test_speaker_caches_every_fixed_phrase():
+    from pathlib import Path
+    import yaml
+    from aura_intent.dialog import FIXED_PHRASES
+    tts = Path(__file__).resolve().parents[2] / "aura_tts" / "config" / "tts.yaml"
+    if not tts.exists():
+        pytest.skip("aura_tts sources not next to aura_intent")
+    cached = yaml.safe_load(tts.read_text())["aura_tts"]["ros__parameters"]["cache_phrases"]
+    assert list(cached) == list(FIXED_PHRASES)

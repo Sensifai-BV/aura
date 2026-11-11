@@ -24,7 +24,7 @@ aura_intent:
     max_transcript_chars: 300
     operator_id: operator-01
     mission_id: ""          # empty: follow ArtabanStatus.mission_id
-    session_prefix: S001
+    session_prefix: ""      # "" = S<day><hhmmss> of the start, unique per run; a fixed value repeats ids after a restart
     noise_threshold_db: 80.0
     diagnostics_period_s: 1.0
     debug: false                 # true: metrics CSV, one row per decision + summary at shutdown (launch: debug:=true)

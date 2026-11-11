@@ -44,9 +44,13 @@ ROS 2 nodes (Artaban, AURA modules)  ──DDS──▶  Orion-LD (-wip dds)  �
   `false_activation` `rejected`; `correct` and `outcome` come from operator feedback (ground truth for calibration).
 - Robot feedback on an event: aura_intent cannot know that a stop was unintended or when the robot came to rest.
   The robot adapter reports it by publishing the received `IntentEvent` again on `/aura/intent/event`, unchanged
-  except `outcome: false_activation` and/or `time_to_safe_stop_ms` (and `recovery_time_s`). aura-monitor matches
-  it by `mission_id` + `event_id` within 10 minutes and updates the original event instead of counting a new one;
-  the "False activations" and "Time-to-safe-stop" tiles use these values.
+  except `outcome: false_activation` and/or `time_to_safe_stop_ms` (and `recovery_time_s`). **Keep the original
+  `header.stamp`**: aura-monitor matches a re-publication by `mission_id` + `event_id` + `header.stamp`, because
+  `event_id` restarts with aura_intent (without a stamp it falls back to `mission_id` + `event_id` within 10 minutes).
+  It updates the original event instead of counting a new one; each feedback field keeps its latest non-empty value,
+  so a later time-to-safe-stop does not erase a false activation. The "False activations" and "Time-to-safe-stop"
+  tiles, the `aura_intent_events` view and the Grafana intent panels all count one row per decision
+  (`monitor/aura_monitor/intent_sql.py`).
 - `BatteryState.percentage` is 0..1; `power_supply_status` 1 = charging.
 - Orion-LD returns `"` inside strings escaped as `\"`; consumers unescape.
 

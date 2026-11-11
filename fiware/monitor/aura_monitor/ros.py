@@ -52,13 +52,42 @@ def environment(entity: dict) -> dict:
 
 
 # Fields the robot adapter may fill in later by publishing the same IntentEvent again (same
-# event_id): it knows whether a stop was unintended and how long the robot took to come to rest.
+# event_id and header.stamp): it knows whether a stop was unintended and how long the robot took to
+# come to rest.
 FEEDBACK = ("outcome", "correct", "timeToSafeStopMs", "recoveryTimeS")
-FEEDBACK_WINDOW_S = 600.0  # event_id restarts with aura_intent, so only match recent events
+# event_id restarts with aura_intent: without a header stamp, only events this close in time match.
+FEEDBACK_WINDOW_S = 600.0
+STAMP_TOLERANCE_S = 0.001
 
 
 def event_key(ev: dict) -> tuple:
     return ev.get("missionId"), ev.get("eventId")
+
+
+def header_stamp(msg: dict) -> float | None:
+    """header.stamp of a ROS message as Orion-LD stores it (sec/nanosec), in seconds; None when unset."""
+    stamp = _msg(_msg(msg.get("header")).get("stamp"))
+    try:
+        t = float(stamp.get("sec", stamp.get("secs", 0)) or 0) + \
+            float(stamp.get("nanosec", stamp.get("nsecs", 0)) or 0) / 1e9
+    except (TypeError, ValueError):
+        return None
+    return t if t > 0 else None
+
+
+def same_event(a: dict, b: dict, t: str = "_rx") -> bool:
+    """True when ``b`` is ``a`` published again (feedback or a repeated notification).
+
+    The decision's header stamp tells an event apart from a new one that reuses its event_id after an
+    aura_intent restart; the adapter keeps the original stamp when it re-publishes. Without a stamp on
+    both sides, only events within FEEDBACK_WINDOW_S of each other match.
+    """
+    if event_key(a) != event_key(b):
+        return False
+    sa, sb = a.get("stamp"), b.get("stamp")
+    if sa is not None and sb is not None:
+        return abs(float(sa) - float(sb)) <= STAMP_TOLERANCE_S
+    return abs(float(a.get(t, 0)) - float(b.get(t, 0))) <= FEEDBACK_WINDOW_S
 
 
 def apply_feedback(target: dict, update: dict) -> bool:
@@ -75,16 +104,16 @@ def apply_feedback(target: dict, update: dict) -> bool:
 
 
 def merge_feedback(events: list[dict], t: str = "_rx") -> list[dict]:
-    """Collapse re-published events (oldest first) into the first one with the same key."""
-    first: dict[tuple, dict] = {}
+    """Collapse re-published events (oldest first) into the first one that is the same event."""
+    seen: dict[tuple, list[dict]] = {}
     out = []
     for ev in events:
-        key = event_key(ev)
-        prev = first.get(key)
-        if prev is not None and abs(float(ev.get(t, 0)) - float(prev.get(t, 0))) <= FEEDBACK_WINDOW_S:
+        candidates = seen.setdefault(event_key(ev), [])
+        prev = next((p for p in reversed(candidates) if same_event(p, ev, t)), None)
+        if prev is not None:
             apply_feedback(prev, ev)
             continue
-        first[key] = ev
+        candidates.append(ev)
         out.append(ev)
     return out
 
@@ -104,6 +133,9 @@ def intent_event(msg: dict) -> dict | None:
         "operatorId": msg.get("operator_id"), "engaged": bool(msg.get("engaged")),
         "safetyCritical": bool(msg.get("safety_critical")),
     }
+    stamp = header_stamp(msg)
+    if stamp is not None:
+        ev["stamp"] = stamp
     if msg.get("time_to_safe_stop_ms"):
         ev["timeToSafeStopMs"] = float(msg["time_to_safe_stop_ms"])
     if msg.get("recovery_time_s"):

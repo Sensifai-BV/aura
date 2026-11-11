@@ -88,6 +88,14 @@ within 30 s.
 (`RATE_LIMIT_HZ`, `RATE_LIMIT_TOPICS`). With the real robot's full-rate odometry and IMU, Orion-LD wrote every sample to
 Mongo and TimescaleDB, the database ran out of connections and Orion-LD crash-looped. Event topics are never limited.
 
+**One way, robot to server** (`ONE_WAY`, server only, default `true`): the server router has a forwarding route that
+lets its local participant forward to no one (`routes: [{src: Local}]`), so nothing on the server's DDS domain reaches
+the robot. Without it the link is bidirectional for every allow-listed topic: Orion-LD creates writers on the mapped
+topics (see "Orion-LD to robot" below), so an NGSI-LD update of `intentEvent` would arrive on the robot's
+`/aura/intent/event`, where an accepted `stop` stops the robot. The robot side can add the mirror rule on its client.
+Checked with DDS Router 3.5.1 (the image's version): the generated configuration loads and an unknown route name is
+rejected.
+
 Limits: the TLS proves the server and encrypts the data, but a router client is not authenticated, so restrict TCP 11800
 to the robot's address at the firewall. The client resolves `SERVER_ADDRESS` once at start; restart it if the address
 changes. Start the server first and let it settle; if Orion-LD was restarted while the router was up, restart `ddsrouter`
@@ -120,8 +128,8 @@ so a test never mixes with a live robot session.
 | `/aura/{stt,intent,gesture,speaker}/status` | `aura_interfaces/ModuleStatus` | each module | `HRIModuleStatus:<module>` · `status` |
 
 **Orion-LD to robot:** the mapping is bidirectional by design (ARISE D2.1 "write mode": an NGSI-LD update is pushed onto
-DDS) and Orion-LD creates writers on the mapped topics. The dashboards only read; sending commands back to the robot
-over DDS has **not been tested** here.
+DDS) and Orion-LD creates writers on the mapped topics. The dashboards only read, and the server router is one-way
+(`ONE_WAY=true`), so no sample from the server reaches the robot.
 
 **Stays on the robot** (not bridged): `/aura/camera/image_raw/compressed`, `/aura/gesture/hypothesis`,
 `/aura/gesture/detections`, `/aura/speaker/speaking`. Images never leave the robot.

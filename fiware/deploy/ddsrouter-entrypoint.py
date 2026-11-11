@@ -14,6 +14,9 @@ TLS_CERT_B64, TLS_KEY_B64, TLS_DH_B64, TLS_KEY_PASSWORD   server: base64 PEM fil
 RATE_LIMIT_HZ   max samples per second forwarded on RATE_LIMIT_TOPICS (0 = off)  [2]
 RATE_LIMIT_TOPICS  comma-separated DDS topics to limit  [rt/odom,rt/imu/data,rt/battery_state]
 ROUTER_CONFIG_PATCH  YAML merged into the configuration (advanced, e.g. specs/qos)
+ONE_WAY         server only, true|false: forward robot -> server only. The server then sends nothing towards the robot,
+                so nothing on the server side (Orion-LD, a test publisher) can publish e.g. an intent event onto the
+                robot's DDS domain. Set false only if the robot must receive server data  [true]
 ANNOUNCE_TYPES  true|false: with LOCAL_PEERS, announce the message types to Orion-LD [true]
 TLS_AUTO        true: a server without TLS_CERT_B64 creates its own CA and certificate in TLS_DIR [/data/tls, a volume] and
                 prints the CA (TLS_CA_B64=...) for the robot;  TLS_SAN  certificate names [DNS:localhost],
@@ -133,6 +136,10 @@ config = {
     "allowlist": [{"name": name, "type": "*"} for name in topics],
     "participants": [local, wan],
 }
+if role == "server" and os.environ.get("ONE_WAY", "true") == "true":
+    # Forwarding routes: a source listed without destinations forwards to no one; WAN (the robot) is not listed, so it
+    # still forwards to every other participant (Local: Orion-LD). The robot's own client can add the mirror route.
+    config["routes"] = [{"src": local["name"]}]
 # A robot publishes odometry and IMU at tens to hundreds of Hz; Orion-LD writes every sample to Mongo and TimescaleDB
 # and fell over under that load. The dashboards need about one sample per second, so the router forwards at most
 # RATE_LIMIT_HZ per listed topic (newer samples win). Event topics (transcripts, intents) are never limited.
@@ -143,7 +150,9 @@ if rate > 0 and limited:
 config.update(yaml.safe_load(os.environ.get("ROUTER_CONFIG_PATCH") or "{}"))   # advanced: extra top-level YAML keys
 with open("/tmp/ddsrouter.yaml", "w") as f:
     yaml.safe_dump(config, f, sort_keys=False)
-print(f"ddsrouter role={role} domain={domain} port={port} tls={'on' if tls else 'OFF'} topics={len(topics)}", flush=True)
+one_way = "routes" in config and config["routes"] == [{"src": local["name"]}]
+print(f"ddsrouter role={role} domain={domain} port={port} tls={'on' if tls else 'OFF'} topics={len(topics)} "
+      f"direction={'robot->server only' if one_way else 'both ways'}", flush=True)
 
 if peers and os.environ.get("ANNOUNCE_TYPES", "true") == "true":
     # broker side: declare the message types on the local domain so Orion-LD subscribes (see ddsrouter-announcer.py)

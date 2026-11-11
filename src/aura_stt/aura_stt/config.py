@@ -25,10 +25,17 @@ class SttConfig:
     transcript_topic: str = "/aura_transcript"
     partial_topic: str = "/aura_partial_transcript"
     status_topic: str = "/aura/stt/status"
-    # aura_tts playback state; the microphone is muted while it is true and for
-    # echo_tail_s after. Empty disables the gate (STT then hears the robot itself).
+    # aura_tts playback state (true while the robot talks). Empty disables all echo handling
+    # (STT then hears the robot itself and can loop on its own "Stop, executing.").
     speaking_topic: str = "/aura/speaker/speaking"
+    # filter: the microphone stays open; words of the sentences the robot played (robot_text_topic)
+    #         are removed from transcripts that overlap its speech, so "stop" is heard while it talks.
+    # mute:   the microphone is muted while the robot talks and echo_tail_s after (round-2 behaviour).
+    echo_mode: str = "filter"
+    robot_text_topic: str = "/aura/speaker/say"
     echo_tail_s: float = 0.4
+    echo_similarity: float = 0.75  # how close a misrecognised robot word must be to count as echo
+    record_audio: bool = False  # save every utterance as a 16 kHz WAV in <metrics_dir>/audio
     debug: bool = False                 # write one CSV row per utterance and a summary (metrics.py)
     metrics_dir: str = "aura_metrics"   # relative to the working directory
     speech_threshold_db: float = -40.0
@@ -62,7 +69,7 @@ class SttConfig:
 
     def validate(self):
         for name in ("model_dir", "device", "input_device", "audio_file", "transcript_topic", "partial_topic",
-                     "speaking_topic"):
+                     "speaking_topic", "robot_text_topic", "echo_mode"):
             if not isinstance(getattr(self, name), str):
                 raise ValueError(f"{name} must be a string (quote microphone indices)")
         if not self.model_dir.strip():
@@ -73,8 +80,12 @@ class SttConfig:
             raise ValueError("num_threads must be a positive integer")
         if type(self.debug) is not bool or not isinstance(self.metrics_dir, str) or not self.metrics_dir.strip():
             raise ValueError("debug must be true or false and metrics_dir a non-empty path")
-        if type(self.debug_audio) is not bool:
-            raise ValueError("debug_audio must be true or false")
+        if type(self.debug_audio) is not bool or type(self.record_audio) is not bool:
+            raise ValueError("debug_audio and record_audio must be true or false")
+        if self.echo_mode not in ("filter", "mute"):
+            raise ValueError("echo_mode must be filter or mute")
+        if self.echo_mode == "filter" and self.speaking_topic and not self.robot_text_topic:
+            raise ValueError("echo_mode filter needs robot_text_topic (the speaker's say topic)")
         for name in ("prefer_usb", "include_internal"):
             if type(getattr(self, name)) is not bool:
                 raise ValueError(f"{name} must be true or false")
@@ -94,7 +105,8 @@ class SttConfig:
             raise ValueError("Transcript topic names must not be empty")
         if self.transcript_topic == self.partial_topic:
             raise ValueError("Partial and final topics must be different")
-        for name in ("speech_threshold_db", "silence_s", "pre_roll_s", "max_utterance_s", "echo_tail_s"):
+        for name in ("speech_threshold_db", "silence_s", "pre_roll_s", "max_utterance_s", "echo_tail_s",
+                     "echo_similarity"):
             value = getattr(self, name)
             if isinstance(value, bool) or not isinstance(value, (float, int)) or not math.isfinite(value):
                 raise ValueError(f"{name} must be a finite number")
@@ -104,5 +116,7 @@ class SttConfig:
             raise ValueError("silence_s must be >= 0.02 and pre_roll_s >= 0")
         if not 0 <= self.echo_tail_s <= 5:
             raise ValueError("echo_tail_s must be between 0 and 5 seconds")
+        if not 0.5 <= self.echo_similarity <= 1:
+            raise ValueError("echo_similarity must be between 0.5 and 1")
         if self.max_utterance_s <= self.silence_s:
             raise ValueError("max_utterance_s must exceed silence_s")

@@ -9,12 +9,13 @@ from psycopg.rows import dict_row
 from psycopg_pool import AsyncConnectionPool
 
 from . import ros
+from .intent_sql import INTENT_ID, merged_intent_events
 from .kpi import calibration_bins
 
 log = logging.getLogger(__name__)
 
 CTX = "https://uri.etsi.org/ngsi-ld/default-context/"
-INTENT_ID = "urn:ngsi-ld:HRIEvent:intent"  # attribute intentEvent = aura_interfaces/IntentEvent
+# INTENT_ID (urn:ngsi-ld:HRIEvent:intent): attribute intentEvent = aura_interfaces/IntentEvent
 
 # Convenience views for ad-hoc SQL / Grafana explore (dashboards do not depend on them).
 VIEWS = f"""
@@ -25,23 +26,16 @@ CREATE OR REPLACE VIEW aura_attributes AS
   FROM attributes;
 DROP VIEW IF EXISTS aura_intent_events;
 CREATE VIEW aura_intent_events AS
-  WITH raw AS (
-    SELECT * FROM attributes WHERE entityid = '{INTENT_ID}' AND id = '{CTX}intentEvent' AND valuetype = 'Compound'
-  )
-  SELECT coalesce(observedat, ts) AS time,
-         compound->>'mission_id' AS mission_id, compound->>'intent' AS intent,
+  -- one row per decision: the adapter's re-publications (same event_id and stamp) are merged in
+  SELECT coalesce(observedat, ts) AS time, ts,
+         compound->>'mission_id' AS mission_id, compound->>'event_id' AS event_id, compound->>'intent' AS intent,
          (ARRAY['ACCEPT','CONFIRM','REJECT','IGNORE'])[(compound->>'decision')::int + 1] AS decision,
          compound->>'outcome' AS outcome, (compound->>'correct')::boolean AS correct,
          (compound->>'confidence')::float AS confidence, (compound->>'latency_ms')::float AS latency_ms,
          compound->>'modality' AS modality, compound->>'acoustic_condition' AS condition,
          compound->>'operator_id' AS operator_id, (compound->>'noise_db')::float AS noise_db,
          (compound->>'time_to_safe_stop_ms')::float AS time_to_safe_stop_ms, compound
-  FROM raw a
-  WHERE NOT EXISTS (  -- feedback from the robot adapter re-publishes the event with the same event_id
-    SELECT 1 FROM raw b
-    WHERE b.compound->>'event_id' = a.compound->>'event_id'
-      AND b.compound->>'mission_id' IS NOT DISTINCT FROM a.compound->>'mission_id'
-      AND b.ts > a.ts AND b.ts <= a.ts + interval '10 minutes');
+  FROM ({merged_intent_events(f"id = '{CTX}intentEvent'")}) merged;
 """
 
 

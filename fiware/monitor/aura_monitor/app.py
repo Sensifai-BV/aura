@@ -59,7 +59,7 @@ class Monitor:
         self.state: dict = {"robot": {}, "air": {}, "session": {}}
         self.events: deque = deque(maxlen=300)
         self.mission: Mission | None = None
-        self.last_event_id: str | None = None
+        self.last_event_id: tuple | None = None  # (event_id, header stamp) of the newest event
         self.last_seen: dict[str, float] = {}
         self.clients: set[asyncio.Queue] = set()
         self.last_report_request: str | None = None
@@ -121,7 +121,7 @@ class Monitor:
             self.events.appendleft(e)
         intent = await self.orion.get(INTENT_ID)
         last = ros.intent_event(simplify(intent).get("intentEvent")) if intent else None
-        self.last_event_id = last["eventId"] if last else None
+        self.last_event_id = (last["eventId"], last.get("stamp")) if last else None
         while True:
             try:
                 await self.orion.ensure_subscription(SUBSCRIPTION_ID, WATCHED, NOTIFY_URL)
@@ -289,8 +289,8 @@ class Monitor:
                     if merged is not None:
                         self.broadcast({"type": "event_update", "data": merged})
                     continue
-                if ev and ev["eventId"] != self.last_event_id:
-                    self.last_event_id = ev["eventId"]
+                if ev and (ev["eventId"], ev.get("stamp")) != self.last_event_id:
+                    self.last_event_id = (ev["eventId"], ev.get("stamp"))
                     ev["time"] = ent.get("_observedAt") or now_iso()
                     if self.mission and ev.get("missionId") == self.mission.mission_id:
                         self.mission.add(dict(ev))
@@ -303,16 +303,16 @@ class Monitor:
             self.broadcast({"type": "entity", "entityType": etype, "id": data["id"], "data": data})
 
     def _known_event(self, ev: dict) -> bool:
-        key, now = ros.event_key(ev), time.time()
-        return any(ros.event_key(e) == key and now - e.get("_rx", 0) <= ros.FEEDBACK_WINDOW_S
-                   for e in reversed(self.shift))
+        probe = {**ev, "_rx": time.time()}
+        return any(ros.same_event(e, probe) for e in reversed(self.shift))
 
     def _apply_feedback(self, ev: dict) -> dict | None:
         """Copy the adapter's feedback onto every stored copy of the event; the updated event or None."""
-        key, merged = ros.event_key(ev), None
+        probe, merged = {**ev, "_rx": time.time()}, None
         copies = list(self.shift) + list(self.events) + (self.mission.events if self.mission else [])
         for e in copies:
-            if ros.event_key(e) == key and ros.apply_feedback(e, ev):
+            # Copies without _rx (dashboard list, mission) match on the stamp, else on the key alone.
+            if ros.same_event({**probe, "_rx": e.get("_rx", probe["_rx"])}, e) and ros.apply_feedback(e, ev):
                 merged = e
         return merged
 

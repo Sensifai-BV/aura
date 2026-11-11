@@ -1,7 +1,9 @@
 """Debug metrics of one AURA module as CSV, for experiment reports (parameter ``debug: true``).
 
 The node writes one row per event to ``<metrics_dir>/<module>_<UTC start>.csv`` (flushed per row, so a killed
-node keeps its data) and, when it shuts down, ``<module>_<UTC start>_summary.csv`` (metric, value, unit, note).
+node keeps its data) and ``<module>_<UTC start>_summary.csv`` (metric, value, unit, note). The summary is rewritten
+every ``SUMMARY_PERIOD_S`` (call ``tick()`` from a timer) and at shutdown, so a node stopped without SIGINT (for
+example ``docker stop`` of ``ros2 run``) still leaves a summary at most that old.
 The same file is in every AURA package so each module stays self-contained.
 """
 
@@ -10,6 +12,8 @@ import math
 import time
 from datetime import datetime, timezone
 from pathlib import Path
+
+SUMMARY_PERIOD_S = 30.0
 
 
 def percentile(values, q):
@@ -33,7 +37,7 @@ def stats(name, values, unit="ms", digits=1, note=""):
 
 
 class MetricsLog:
-    def __init__(self, directory, module, fields):
+    def __init__(self, directory, module, fields, summary=None):
         self.dir = Path(directory).expanduser()
         self.dir.mkdir(parents=True, exist_ok=True)
         stem = f"{module}_{time.strftime('%Y%m%dT%H%M%SZ', time.gmtime())}"
@@ -41,6 +45,8 @@ class MetricsLog:
         self.summary_path = self.dir / f"{stem}_summary.csv"
         self.fields = ["time"] + list(fields)
         self.rows = []
+        self.summary = summary  # callable -> summary rows, for the periodic rewrite
+        self._last_summary = time.monotonic()
         self._file = open(self.path, "w", newline="")
         self._writer = csv.DictWriter(self._file, fieldnames=self.fields, extrasaction="ignore")
         self._writer.writeheader()
@@ -58,10 +64,31 @@ class MetricsLog:
     def column(self, name, where=lambda r: True):
         return [r.get(name) for r in self.rows if where(r) and r.get(name) not in (None, "")]
 
-    def close(self, summary_rows):
-        with open(self.summary_path, "w", newline="") as f:
+    def write_summary(self, summary_rows=None):
+        """Write the summary now (atomically, so a reader never sees half a file)."""
+        if summary_rows is None:
+            if self.summary is None:
+                return None
+            summary_rows = self.summary()
+        tmp = self.summary_path.with_suffix(".tmp")
+        with open(tmp, "w", newline="") as f:
             w = csv.writer(f)
             w.writerow(["metric", "value", "unit", "note"])
             w.writerows(summary_rows)
-        self._file.close()
+        tmp.replace(self.summary_path)
+        self._last_summary = time.monotonic()
         return self.summary_path
+
+    def tick(self):
+        """Rewrite the summary when the last one is older than SUMMARY_PERIOD_S; never raises."""
+        if self.summary is None or time.monotonic() - self._last_summary < SUMMARY_PERIOD_S:
+            return
+        try:
+            self.write_summary()
+        except Exception:  # a debug aid must not stop the module
+            self._last_summary = time.monotonic()
+
+    def close(self, summary_rows=None):
+        path = self.write_summary(summary_rows)
+        self._file.close()
+        return path

@@ -65,6 +65,8 @@ class TtsNode(Node):
             from .metrics import MetricsLog
             self.metrics = MetricsLog(config.metrics_dir, "tts", [
                 "text", "chars", "cached", "first_audio_ms", "synth_ms", "audio_s", "interrupted", "error", "model_id"])
+            self.metrics.summary = self._summary_rows
+            self.create_timer(5.0, self.metrics.tick)  # summary survives a kill
             self.get_logger().info(f"debug: metrics to {self.metrics.path}")
         self.create_subscription(String, config.say_topic, self._on_say, 10)
         self.create_timer(0.01, self._publish)
@@ -128,19 +130,21 @@ class TtsNode(Node):
         self.speaker.close()
         self.speaker.player.close()
         if self.metrics is not None:
-            m = self.metrics
-            played = lambda r: not r["error"] and r["first_audio_ms"] > 0
-            rows = [("prompts", len(m.rows), "", ""),
-                    ("cached prompts", sum(r["cached"] for r in m.rows), "", "no synthesis delay"),
-                    ("interrupted by a newer prompt", sum(r["interrupted"] for r in m.rows), "", ""),
-                    ("errors", sum(1 for r in m.rows if r["error"]), "", ""),
-                    ("audio played", round(sum(r["audio_s"] for r in m.rows), 1), "s", "")]
-            rows += stats("first audio", m.column("first_audio_ms", played), note="prompt received -> playback start")
-            rows += stats("first audio (synthesised)", m.column("first_audio_ms", lambda r: played(r) and not r["cached"]))
-            rows += stats("first audio (cached)", m.column("first_audio_ms", lambda r: played(r) and r["cached"]))
-            rows += stats("synthesis", m.column("synth_ms", lambda r: not r["cached"]), note="all sentences of a prompt")
-            path = m.close(rows)
-            self.get_logger().info(f"debug: metrics summary in {path}")
+            self.get_logger().info(f"debug: metrics summary in {self.metrics.close()}")
+
+    def _summary_rows(self):
+        m = self.metrics
+        played = lambda r: not r["error"] and r["first_audio_ms"] > 0
+        rows = [("prompts", len(m.rows), "", ""),
+                ("cached prompts", sum(r["cached"] for r in m.rows), "", "no synthesis delay"),
+                ("interrupted by a newer prompt", sum(r["interrupted"] for r in m.rows), "", ""),
+                ("errors", sum(1 for r in m.rows if r["error"]), "", ""),
+                ("audio played", round(sum(r["audio_s"] for r in m.rows), 1), "s", "")]
+        rows += stats("first audio", m.column("first_audio_ms", played), note="prompt received -> playback start")
+        rows += stats("first audio (synthesised)", m.column("first_audio_ms", lambda r: played(r) and not r["cached"]))
+        rows += stats("first audio (cached)", m.column("first_audio_ms", lambda r: played(r) and r["cached"]))
+        rows += stats("synthesis", m.column("synth_ms", lambda r: not r["cached"]), note="all sentences of a prompt")
+        return rows
 
 
 def main(args=None):

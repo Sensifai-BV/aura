@@ -5,7 +5,11 @@ import queue
 import signal
 import threading
 import time
+import wave
+from datetime import datetime, timezone
+from pathlib import Path
 
+import numpy as np
 import rclpy
 from rclpy.node import Node
 from rclpy.executors import ExternalShutdownException
@@ -14,6 +18,7 @@ from std_msgs.msg import Bool, String
 
 from .asr import StreamingTranscriber
 from .audio import SAMPLE_RATE, EchoGate, UtteranceSegmenter
+from .echo import EchoFilter, RobotSpeech
 from .metrics import stats
 from .config import SttConfig
 from .replay import WaveReplay
@@ -43,7 +48,10 @@ class SttNode(Node):
         self.final_latency_ms = collections.deque(maxlen=20)
         self.partial_count = 0
         self.echo = None
+        self.echo_filter = None
+        self.robot_speech = None
         self.muted_samples = 0
+        self.utterance_index = 0
         self.metrics = None
         try:
             defaults = SttConfig.defaults()
@@ -60,15 +68,25 @@ class SttNode(Node):
                 from .metrics import MetricsLog
                 self.metrics = MetricsLog(config.metrics_dir, "stt", [
                     "text", "words", "speech_s", "final_latency_ms", "first_partial_ms", "partials", "robot_spoke_s",
-                    "device"])
+                    "forwarded", "echo_removed", "early_safety", "audio_file", "device"])
+                self.metrics.summary = self._summary_rows
+                self.create_timer(5.0, self.metrics.tick)  # summary survives a kill
                 self.get_logger().info(f"debug: metrics to {self.metrics.path}")
             if config.speaking_topic:
                 self.echo = EchoGate(config.echo_tail_s)
                 self.create_subscription(Bool, config.speaking_topic, self._on_speaking, 10)
+                if config.echo_mode == "filter":
+                    self.robot_speech = RobotSpeech()
+                    self.echo_filter = EchoFilter(self.echo, self.robot_speech, config.echo_similarity)
+                    self.create_subscription(String, config.robot_text_topic, self._on_robot_text, 10)
+            if config.record_audio:
+                self.audio_dir = Path(config.metrics_dir).expanduser() / "audio"
+                self.audio_dir.mkdir(parents=True, exist_ok=True)
+                self.get_logger().info(f"record_audio: utterances to {self.audio_dir}")
             self.segmenter = UtteranceSegmenter(
                 self._start_session, threshold_db=config.speech_threshold_db,
                 silence_s=config.silence_s, pre_roll_s=config.pre_roll_s,
-                max_utterance_s=config.max_utterance_s, tail_s=config.tail_s)
+                max_utterance_s=config.max_utterance_s, tail_s=config.tail_s, record=config.record_audio)
             self.get_logger().info("Loading local Nemotron model and warming up")
             self.transcriber = StreamingTranscriber(
                 config.model_dir, config.device, config.latency_ms, config.num_threads)
@@ -103,8 +121,12 @@ class SttNode(Node):
     def _on_speaking(self, msg):
         self.echo.speaking(bool(msg.data))
         if self.config.debug_audio:
-            self.get_logger().info(f"echo gate: robot {'speaking, microphone muted' if msg.data else 'quiet'} "
-                                   f"(t={time.monotonic():.2f})")
+            state = ("speaking, microphone muted" if self.config.echo_mode == "mute" else "speaking, echo filter on") \
+                if msg.data else "quiet"
+            self.get_logger().info(f"echo gate: robot {state} (t={time.monotonic():.2f})")
+
+    def _on_robot_text(self, msg):
+        self.robot_speech.said(msg.data, time.monotonic())
 
     def _fail(self, exc):
         if self.failure is None:
@@ -159,7 +181,7 @@ class SttNode(Node):
                     self.segmenter.finish()
                     return
                 block, captured_at = item
-                if self.echo is not None and self.echo.muted(captured_at):
+                if self.echo_filter is None and self.echo is not None and self.echo.muted(captured_at):
                     self.muted_samples += len(block)
                     block = block * 0
                 self.segmenter.push(block)
@@ -188,26 +210,61 @@ class SttNode(Node):
                 if self.stop_event.is_set():
                     self.current_buffer.close()
                     break
-                buffer, partials = self.current_buffer, []
+                buffer, partials, early = self.current_buffer, [], []
 
                 def on_partial(text):
                     partials.append(time.monotonic())
                     self._emit("partial", text)
+                    if self.echo_filter is not None and not early:
+                        # The utterance ends only after the robot stops talking: send a stop now.
+                        safety = self.echo_filter.early_safety(text, buffer.opened_at, time.monotonic())
+                        if safety:
+                            early.append(safety)
+                            self.final_times.append(time.time())
+                            self._emit("final", safety)
 
                 text = self.transcriber.transcribe(buffer, on_partial)
                 closed_at = buffer.closed_at
                 self.current_buffer = None
+                forwarded, removed = text, 0
+                if text and self.echo_filter is not None:
+                    forwarded, removed = self.echo_filter.clean(
+                        text, buffer.opened_at, closed_at if closed_at is not None else time.monotonic())
+                if early:
+                    forwarded = ""  # its safety words were already sent from a partial
+                audio_file = self._record(buffer) if self.config.record_audio else ""
                 if self.metrics is not None:
-                    self._utterance_metrics(buffer, text, partials)
-                if text:
+                    self._utterance_metrics(buffer, text, partials, forwarded, removed, early, audio_file)
+                if forwarded:
                     if closed_at is not None:
                         self.final_latency_ms.append((time.monotonic() - closed_at) * 1000)
                     self.final_times.append(time.time())
-                    self._emit("final", text)
+                    self._emit("final", forwarded)
         except Exception as exc:
             self._fail(exc)
 
-    def _utterance_metrics(self, buffer, text, partials):
+    def _record(self, buffer):
+        """Save what the recogniser heard (pre-roll, speech, endpoint tail) as 16 kHz mono PCM16."""
+        if not buffer.recording:
+            return ""
+        self.utterance_index += 1
+        stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S.%f")[:-3]
+        path = self.audio_dir / f"stt_{stamp}Z_{self.utterance_index:04d}.wav"
+        try:
+            pcm = (np.clip(np.concatenate(buffer.recording), -1, 1) * 32767).astype("<i2")
+            with wave.open(str(path), "wb") as w:
+                w.setnchannels(1)
+                w.setsampwidth(2)
+                w.setframerate(SAMPLE_RATE)
+                w.writeframes(pcm.tobytes())
+        except Exception as exc:  # a debug aid must not stop recognition
+            self.get_logger().warning(f"record_audio: {exc}")
+            return ""
+        finally:
+            buffer.recording = None
+        return path.name
+
+    def _utterance_metrics(self, buffer, text, partials, forwarded="", removed=0, early=(), audio_file=""):
         now = time.monotonic()
         end = buffer.closed_at
         muted = 0.0
@@ -218,7 +275,9 @@ class SttNode(Node):
                          speech_s=(end - buffer.opened_at) if end else None,
                          final_latency_ms=(now - end) * 1000 if end else None,
                          first_partial_ms=(partials[0] - buffer.opened_at) * 1000 if partials else None,
-                         partials=len(partials), robot_spoke_s=muted, device=str(self.transcriber.device))
+                         partials=len(partials), robot_spoke_s=muted,
+                         forwarded=early[0] if early else (forwarded or ""), echo_removed=removed,
+                         early_safety=int(bool(early)), audio_file=audio_file, device=str(self.transcriber.device))
 
     def _publish(self):
         if self.failure is not None:
@@ -273,7 +332,7 @@ class SttNode(Node):
         values = dict(rate=round(len(self.final_times), 2), rate_unit="/min", latency_ms=round(latency, 1),
                       latency_setting_ms=self.config.latency_ms, captured_s=round(self.captured_samples / SAMPLE_RATE, 1),
                       peak=round(self.capture_peak, 3), device=str(self.transcriber.device),
-                      echo_gate="on" if self.echo is not None else "off",
+                      echo_gate=self.config.echo_mode if self.echo is not None else "off",
                       muted_s=round(self.muted_samples / SAMPLE_RATE, 1))
         status.keys, status.values = list(values), [str(v) for v in values.values()]
         status.header.stamp = self.get_clock().now().to_msg()
@@ -294,20 +353,34 @@ class SttNode(Node):
             if thread.is_alive():
                 self.get_logger().warning(f"Worker {thread.name} did not finish within shutdown timeout")
         if self.metrics is not None:
-            m = self.metrics
-            rows = [("utterances", len(m.rows), "", "speech segments decoded"),
-                    ("empty decodes", sum(1 for r in m.rows if not r["text"]), "", "noise that opened an utterance"),
-                    ("words", sum(r["words"] for r in m.rows), "", ""),
-                    ("utterances overlapping robot speech", sum(1 for r in m.rows if r["robot_spoke_s"]), "",
-                     "audio muted by the echo gate inside the utterance"),
-                    ("microphone muted (echo gate)", round(self.muted_samples / SAMPLE_RATE, 1), "s", ""),
-                    ("latency setting", self.config.latency_ms, "ms", "")]
-            rows += stats("final latency", m.column("final_latency_ms", lambda r: r["text"]),
-                          note="end of speech -> final transcript")
-            rows += stats("first partial", m.column("first_partial_ms"), note="speech onset -> first partial")
-            rows += stats("speech duration", m.column("speech_s", lambda r: r["text"]), unit="s", digits=2)
-            self.get_logger().info(f"debug: metrics summary in {m.close(rows)}")
+            self.get_logger().info(f"debug: metrics summary in {self.metrics.close()}")
 
+
+    def _summary_rows(self):
+        m = self.metrics
+        overlap = [r for r in m.rows if r["robot_spoke_s"]]
+        rows = [("utterances", len(m.rows), "", "speech segments decoded"),
+                ("empty decodes", sum(1 for r in m.rows if not r["text"]), "", "noise that opened an utterance"),
+                ("words", sum(r["words"] for r in m.rows), "", ""),
+                ("echo mode", self.config.echo_mode if self.echo is not None else "off", "", ""),
+                ("utterances overlapping robot speech", len(overlap), "",
+                 "audio muted inside the utterance" if self.config.echo_mode == "mute" else "robot words filtered")]
+        if self.echo_filter is not None:
+            rows += [("dropped as robot echo", sum(1 for r in overlap if r["text"] and not r["forwarded"]), "",
+                      "transcript was only the robot's own words"),
+                     ("forwarded during robot speech", sum(1 for r in overlap if r["forwarded"]), "",
+                      "operator words left after removing the robot's"),
+                     ("robot words removed", sum(r["echo_removed"] for r in m.rows), "", ""),
+                     ("early safety finals", sum(r["early_safety"] for r in m.rows), "",
+                      "stop/pause sent from a partial while the robot talked")]
+        else:
+            rows.append(("microphone muted (echo gate)", round(self.muted_samples / SAMPLE_RATE, 1), "s", ""))
+        rows.append(("latency setting", self.config.latency_ms, "ms", ""))
+        rows += stats("final latency", m.column("final_latency_ms", lambda r: r["text"]),
+                      note="end of speech -> final transcript")
+        rows += stats("first partial", m.column("first_partial_ms"), note="speech onset -> first partial")
+        rows += stats("speech duration", m.column("speech_s", lambda r: r["text"]), unit="s", digits=2)
+        return rows
 
 def main(args=None):
     rclpy.init(args=args)
