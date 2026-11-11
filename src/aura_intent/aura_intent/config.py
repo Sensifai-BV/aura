@@ -44,6 +44,8 @@ class IntentConfig:
     session_prefix: str = "S001"  # event_id = <prefix>-<counter>
     noise_threshold_db: float = 80.0  # la_eq above this -> acoustic_condition "noise"
     diagnostics_period_s: float = 1.0
+    debug: bool = False                 # write one CSV row per decision and a summary (metrics.py)
+    metrics_dir: str = "aura_metrics"   # relative to the working directory
 
     @classmethod
     def defaults(cls):
@@ -60,6 +62,8 @@ class IntentConfig:
                      "diagnostics_topic", "session_prefix"):
             if not isinstance(getattr(self, name), str) or not getattr(self, name).strip():
                 raise ValueError(f"{name} must be a non-empty string")
+        if type(self.debug) is not bool or not isinstance(self.metrics_dir, str) or not self.metrics_dir.strip():
+            raise ValueError("debug must be true or false and metrics_dir a non-empty path")
         if not isinstance(self.speaking_topic, str):
             raise ValueError("speaking_topic must be a string (empty disables it)")
         if type(self.num_threads) is not int or self.num_threads <= 0:

@@ -13,6 +13,11 @@ def launch_node(context):
         value = LaunchConfiguration(name).perform(context)
         if value:
             overrides[name] = value
+    if LaunchConfiguration("debug").perform(context).lower() == "true":
+        overrides["debug"] = True
+    metrics_dir = LaunchConfiguration("metrics_dir").perform(context)
+    if metrics_dir:
+        overrides["metrics_dir"] = metrics_dir
     voice = LaunchConfiguration("voice").perform(context)
     if voice:
         overrides["voice"] = int(voice)
@@ -28,5 +33,7 @@ def generate_launch_description():
         DeclareLaunchArgument("output_device", default_value="",
                               description='Output device index or name; "none" for headless'),
         DeclareLaunchArgument("voice", default_value=""),
+        DeclareLaunchArgument("debug", default_value="false", description="Write metrics CSV (one row per prompt)"),
+        DeclareLaunchArgument("metrics_dir", default_value="", description="Override YAML metrics_dir"),
         OpaqueFunction(function=launch_node),
     ])

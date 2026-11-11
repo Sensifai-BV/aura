@@ -29,6 +29,8 @@ class SttConfig:
     # echo_tail_s after. Empty disables the gate (STT then hears the robot itself).
     speaking_topic: str = "/aura/speaker/speaking"
     echo_tail_s: float = 0.4
+    debug: bool = False                 # write one CSV row per utterance and a summary (metrics.py)
+    metrics_dir: str = "aura_metrics"   # relative to the working directory
     speech_threshold_db: float = -40.0
     silence_s: float = 0.8
     pre_roll_s: float = 0.3
@@ -69,6 +71,8 @@ class SttConfig:
             raise ValueError("latency_ms must be 80, 160, 560 or 1120")
         if type(self.num_threads) is not int or self.num_threads < 1:
             raise ValueError("num_threads must be a positive integer")
+        if type(self.debug) is not bool or not isinstance(self.metrics_dir, str) or not self.metrics_dir.strip():
+            raise ValueError("debug must be true or false and metrics_dir a non-empty path")
         if type(self.debug_audio) is not bool:
             raise ValueError("debug_audio must be true or false")
         for name in ("prefer_usb", "include_internal"):

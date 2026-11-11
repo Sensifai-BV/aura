@@ -12,7 +12,7 @@ unset ROS_STATIC_PEERS
 status=0
 for p in stt intent tts gesture; do
   echo "== unit tests aura_$p"
-  (cd /ws/src/aura_$p && PYTHONPATH=. python -m pytest -q test -p no:cacheprovider \
+  (cd /ws/src/aura_$p && PYTHONPATH=".:$PYTHONPATH" python -m pytest -q test -p no:cacheprovider \
       --ignore=test/ros_e2e.py --ignore=test/smoke_model.py 2>&1 | tail -4) || status=1
 done
 echo "== integration suite (ROS 2 $ROS_DISTRO)"

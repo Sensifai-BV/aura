@@ -23,7 +23,12 @@ def launch_nodes(context):
         if value:
             overrides[name] = value
     if LaunchConfiguration("debug").perform(context).lower() == "true":
+        overrides["debug"] = True
+    if LaunchConfiguration("debug_image").perform(context).lower() == "true":
         overrides["publish_debug_image"] = True
+    metrics_dir = LaunchConfiguration("metrics_dir").perform(context)
+    if metrics_dir:
+        overrides["metrics_dir"] = metrics_dir
     max_age = LaunchConfiguration("max_frame_age_s").perform(context)
     if max_age:
         overrides["max_frame_age_s"] = float(max_age)
@@ -43,7 +48,10 @@ def generate_launch_description():
         DeclareLaunchArgument("providers", default_value="",
                               description="Override YAML ONNX Runtime providers, e.g. CUDAExecutionProvider,CPUExecutionProvider"),
         DeclareLaunchArgument("debug", default_value="false",
+                              description="Write metrics CSV (one row per accepted gesture)"),
+        DeclareLaunchArgument("debug_image", default_value="false",
                               description="Publish the annotated debug image stream"),
+        DeclareLaunchArgument("metrics_dir", default_value="", description="Override YAML metrics_dir"),
         DeclareLaunchArgument("max_frame_age_s", default_value="",
                               description="0 disables the stale-frame guard (bag replay)"),
         OpaqueFunction(function=launch_nodes),

@@ -24,6 +24,7 @@ class Utterance:
     cached: bool = False
     interrupted: bool = False
     error: str = ""
+    audio_s: float = 0.0         # audio played (all sentences, until an interruption)
 
 
 class Speaker:
@@ -109,6 +110,7 @@ class Speaker:
             if i == 0:
                 u.first_audio_ms = (time.monotonic() - u.received) * 1000
                 self.on_speaking(True)
+            u.audio_s += len(audio) / sr
             if not self.player.play(audio, sr, lambda: self._superseded(generation)):
                 u.interrupted = True
                 return

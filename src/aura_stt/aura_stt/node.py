@@ -14,6 +14,7 @@ from std_msgs.msg import Bool, String
 
 from .asr import StreamingTranscriber
 from .audio import SAMPLE_RATE, EchoGate, UtteranceSegmenter
+from .metrics import stats
 from .config import SttConfig
 from .replay import WaveReplay
 from .microphone import MicrophoneCapture
@@ -43,6 +44,7 @@ class SttNode(Node):
         self.partial_count = 0
         self.echo = None
         self.muted_samples = 0
+        self.metrics = None
         try:
             defaults = SttConfig.defaults()
             for name, default in defaults.items():
@@ -54,6 +56,12 @@ class SttNode(Node):
             self.final_publisher = self.create_publisher(String, config.transcript_topic, 10)
             self.partial_publisher = self.create_publisher(String, config.partial_topic, 10)
             self.status_publisher = self.create_publisher(ModuleStatus, config.status_topic, 10)
+            if config.debug:
+                from .metrics import MetricsLog
+                self.metrics = MetricsLog(config.metrics_dir, "stt", [
+                    "text", "words", "speech_s", "final_latency_ms", "first_partial_ms", "partials", "robot_spoke_s",
+                    "device"])
+                self.get_logger().info(f"debug: metrics to {self.metrics.path}")
             if config.speaking_topic:
                 self.echo = EchoGate(config.echo_tail_s)
                 self.create_subscription(Bool, config.speaking_topic, self._on_speaking, 10)
@@ -180,10 +188,17 @@ class SttNode(Node):
                 if self.stop_event.is_set():
                     self.current_buffer.close()
                     break
-                text = self.transcriber.transcribe(
-                    self.current_buffer, lambda text: self._emit("partial", text))
-                closed_at = self.current_buffer.closed_at
+                buffer, partials = self.current_buffer, []
+
+                def on_partial(text):
+                    partials.append(time.monotonic())
+                    self._emit("partial", text)
+
+                text = self.transcriber.transcribe(buffer, on_partial)
+                closed_at = buffer.closed_at
                 self.current_buffer = None
+                if self.metrics is not None:
+                    self._utterance_metrics(buffer, text, partials)
                 if text:
                     if closed_at is not None:
                         self.final_latency_ms.append((time.monotonic() - closed_at) * 1000)
@@ -191,6 +206,19 @@ class SttNode(Node):
                     self._emit("final", text)
         except Exception as exc:
             self._fail(exc)
+
+    def _utterance_metrics(self, buffer, text, partials):
+        now = time.monotonic()
+        end = buffer.closed_at
+        muted = 0.0
+        if self.echo is not None and end is not None:  # robot speech inside this utterance (muted by the gate)
+            muted = sum(0.1 for i in range(int((end - buffer.opened_at) * 10))
+                        if self.echo.muted(buffer.opened_at + i * 0.1))
+        self.metrics.row(text=text or "", words=len((text or "").split()),
+                         speech_s=(end - buffer.opened_at) if end else None,
+                         final_latency_ms=(now - end) * 1000 if end else None,
+                         first_partial_ms=(partials[0] - buffer.opened_at) * 1000 if partials else None,
+                         partials=len(partials), robot_spoke_s=muted, device=str(self.transcriber.device))
 
     def _publish(self):
         if self.failure is not None:
@@ -265,6 +293,20 @@ class SttNode(Node):
         for thread in self.threads:
             if thread.is_alive():
                 self.get_logger().warning(f"Worker {thread.name} did not finish within shutdown timeout")
+        if self.metrics is not None:
+            m = self.metrics
+            rows = [("utterances", len(m.rows), "", "speech segments decoded"),
+                    ("empty decodes", sum(1 for r in m.rows if not r["text"]), "", "noise that opened an utterance"),
+                    ("words", sum(r["words"] for r in m.rows), "", ""),
+                    ("utterances overlapping robot speech", sum(1 for r in m.rows if r["robot_spoke_s"]), "",
+                     "audio muted by the echo gate inside the utterance"),
+                    ("microphone muted (echo gate)", round(self.muted_samples / SAMPLE_RATE, 1), "s", ""),
+                    ("latency setting", self.config.latency_ms, "ms", "")]
+            rows += stats("final latency", m.column("final_latency_ms", lambda r: r["text"]),
+                          note="end of speech -> final transcript")
+            rows += stats("first partial", m.column("first_partial_ms"), note="speech onset -> first partial")
+            rows += stats("speech duration", m.column("speech_s", lambda r: r["text"]), unit="s", digits=2)
+            self.get_logger().info(f"debug: metrics summary in {m.close(rows)}")
 
 
 def main(args=None):

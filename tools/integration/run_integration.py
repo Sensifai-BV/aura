@@ -724,6 +724,7 @@ def main():
     ap.add_argument("--confirm-mode", default="", help="aura_intent confirm_mode: always, uncertain or never")
     ap.add_argument("--echo-gain", type=float, default=0.8,
                     help="robot voice fed back into the operator microphone (0 = no echo, as before)")
+    ap.add_argument("--debug", action="store_true", help="modules write metrics CSV files to <out>/metrics")
     ap.add_argument("--stt-debug", action="store_true", help="STT debug_audio: levels and echo gate state in stt.log")
     ap.add_argument("--no-echo-gate", action="store_true", help="STT keeps listening while the robot speaks (baseline)")
     ap.add_argument("--record-mic", default="", help="save the audio STT receives (raw PCM16 16 kHz) to this path")
@@ -748,21 +749,23 @@ def main():
         procs.start("bridge", [sys.executable, str(Path(__file__).parent / "ws_bridge.py"), "--fifo", fifo]
                     + (["--record", args.record_mic] if args.record_mic else []))
         procs.wait_log("bridge", "ws bridge on", 20)
+        # --debug: every module writes its metrics CSV (and a summary at shutdown) to <out>/metrics
+        dbg = ["-p", "debug:=true", "-p", f"metrics_dir:={out / 'metrics'}"] if args.debug else []
         procs.start("tts", ["ros2", "run", "aura_tts", "tts", "--ros-args", "-p", "output_device:=" + (
-            "ws://127.0.0.1:8765/speaker" if args.live or args.echo_gain > 0 else "none")])
+            "ws://127.0.0.1:8765/speaker" if args.live or args.echo_gain > 0 else "none")] + dbg)
         iparams = ([f"confirm_mode:={args.confirm_mode}"] if args.confirm_mode else []) + (
             [f"confirm_timeout_s:={args.confirm_timeout}"] if args.confirm_timeout else []) + (
             [f"mission_id:={args.mission_id}"] if args.mission_id else [])
-        procs.start("intent", ["ros2", "run", "aura_intent", "intent"]
-                    + (["--ros-args"] + [x for p in iparams for x in ("-p", p)] if iparams else []))
+        procs.start("intent", ["ros2", "run", "aura_intent", "intent", "--ros-args"]
+                    + [x for p in iparams for x in ("-p", p)] + dbg)
         procs.start("stt", ["ros2", "run", "aura_stt", "stt", "--ros-args", "-p", f"model_dir:={args.model_dir}",
                             "-p", f"audio_file:={fifo}", "-p", "device:=cpu", "-p", f"latency_ms:={args.latency_ms}"]
                    + (["-p", f"speech_threshold_db:={args.speech_threshold_db}"] if args.speech_threshold_db else [])
                    + (["-p", "speaking_topic:=''"] if args.no_echo_gate else [])
-                   + (["-p", "debug_audio:=true"] if args.stt_debug else []))
+                   + (["-p", "debug_audio:=true"] if args.stt_debug else []) + dbg)
         procs.start("camera", ["ros2", "run", "aura_gesture", "camera", "--ros-args",
                                "-p", "source:=http://127.0.0.1:18090/stream.mjpg"])
-        procs.start("gesture", ["ros2", "run", "aura_gesture", "gesture"])
+        procs.start("gesture", ["ros2", "run", "aura_gesture", "gesture", "--ros-args"] + dbg)
         peer = os.environ.get("ROS_STATIC_PEERS", "").split(";")[0]
         if args.live and args.edge and peer:  # real edge-computer metrics for /artaban/status, probing the broker
             procs.start("edge", [sys.executable, str(Path(__file__).parent / "edge_telemetry.py"), "--probe", f"{peer}:1026"])

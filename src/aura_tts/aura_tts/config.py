@@ -53,6 +53,8 @@ class TtsConfig:
     cache_phrases: list = field(default_factory=lambda: list(DEFAULT_PHRASES))
     max_chars: int = 400
     diagnostics_period_s: float = 1.0
+    debug: bool = False                 # write one CSV row per prompt and a summary (metrics.py)
+    metrics_dir: str = "aura_metrics"   # relative to the working directory
 
     @classmethod
     def defaults(cls):
@@ -88,6 +90,8 @@ class TtsConfig:
             raise ValueError("gain must be in (0, 4]")
         if not _finite(self.diagnostics_period_s) or self.diagnostics_period_s < 0:
             raise ValueError("diagnostics_period_s must be zero (off) or positive")
+        if type(self.debug) is not bool or not isinstance(self.metrics_dir, str) or not self.metrics_dir.strip():
+            raise ValueError("debug must be true or false and metrics_dir a non-empty path")
         if type(self.normalize_text) is not bool:
             raise ValueError("normalize_text must be true or false")
         if not all(isinstance(p, str) for p in self.cache_phrases):

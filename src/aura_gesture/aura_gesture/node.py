@@ -24,6 +24,7 @@ from vision_msgs.msg import Detection2D, Detection2DArray, ObjectHypothesisWithP
 from aura_interfaces.msg import GestureIntent
 
 from .config import GestureConfig, resolve_model_path
+from .metrics import stats
 from .decision import ACCEPTED, TemporalGate
 from .detector import OnnxGestureDetector, top_command
 from .labels import NONE
@@ -65,6 +66,15 @@ class GestureNode(Node):
         self.status_pub = self.create_publisher(ModuleStatus, config.status_topic, 10)
         self.debug_pub = (self.create_publisher(CompressedImage, config.debug_image_topic, 5)
                           if config.publish_debug_image else None)
+        self.metrics = None
+        self.started = time.monotonic()
+        self.all_inference, self.all_latency = [], []
+        if config.debug:
+            from .metrics import MetricsLog
+            self.metrics = MetricsLog(config.metrics_dir, "gesture", [
+                "gesture", "intent", "confidence", "frame_confidence", "threshold", "votes", "window", "latency_ms",
+                "inference_ms", "raw_label", "model_id", "provider"])
+            self.get_logger().info(f"debug: metrics to {self.metrics.path}")
         self.create_subscription(CompressedImage, config.image_topic, self._on_image, qos_profile_sensor_data)
         self.create_timer(0.01, self._publish)
         if config.diagnostics_period_s > 0:
@@ -194,9 +204,17 @@ class GestureNode(Node):
             self.hypothesis_pub.publish(msg)
             self.inference.append(ms)
             self.latency.append(msg.latency_ms)
+            if self.metrics is not None:
+                self.all_inference.append(ms)
+                self.all_latency.append(msg.latency_ms)
             if decision.state == ACCEPTED:
                 self.stats["accepted"] += 1
                 self.intent_pub.publish(msg)
+                if self.metrics is not None:
+                    self.metrics.row(gesture=msg.gesture, intent=msg.intent, confidence=msg.confidence,
+                                     frame_confidence=msg.frame_confidence, threshold=msg.threshold, votes=msg.votes,
+                                     window=msg.window, latency_ms=msg.latency_ms, inference_ms=msg.inference_ms,
+                                     raw_label=msg.raw_label, model_id=self.model_id, provider=self.detector.provider)
                 self.get_logger().info(
                     f"Intent {msg.intent} ({msg.gesture}) conf {msg.confidence:.2f} "
                     f"votes {msg.votes}/{msg.window} latency {msg.latency_ms:.0f}ms")
@@ -236,6 +254,25 @@ class GestureNode(Node):
             self.thread.join(timeout=5)
             if self.thread.is_alive():
                 self.get_logger().warning("Inference worker did not finish within shutdown timeout")
+        if self.metrics is not None:
+            m, s = self.metrics, self.stats
+            run_s = time.monotonic() - self.started
+            rows = [("run time", round(run_s, 1), "s", ""),
+                    ("frames received", s["received"], "", ""),
+                    ("frames processed", s["processed"], "", ""),
+                    ("frames processed per second", round(s["processed"] / run_s, 2) if run_s else None, "fps", ""),
+                    ("frames dropped (busy)", s["dropped"], "", "newest frame wins"),
+                    ("frames dropped (stale)", s["stale"], "", f"older than max_frame_age_s {self.config.max_frame_age_s}"),
+                    ("provider", self.detector.provider, "", self.model_id),
+                    ("accepted gestures", len(m.rows), "", "")]
+            for g in self.config.gestures:
+                conf = m.column("confidence", lambda r, g=g: r["gesture"] == g)
+                rows.append((f"accepted {g}", len(conf), "",
+                             f"mean confidence {sum(conf) / len(conf):.2f}" if conf else ""))
+            rows += stats("inference", self.all_inference, note="per frame")
+            rows += stats("frame latency", self.all_latency, note="capture -> result, per frame")
+            rows += stats("accepted gesture latency", m.column("latency_ms"), note="capture of the deciding frame -> intent")
+            self.get_logger().info(f"debug: metrics summary in {m.close(rows)}")
 
 
 def main(args=None):

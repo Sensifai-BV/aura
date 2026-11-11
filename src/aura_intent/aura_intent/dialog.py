@@ -44,6 +44,7 @@ class Decision:
     engaged: bool = True
     outcome: str = ""
     correct: bool = False
+    answer_s: float | None = None  # answers: end of the spoken question (or the question, if unknown) -> answer
 
     @property
     def safety_critical(self):
@@ -91,7 +92,7 @@ class Dialog:
             return Decision(intent, REJECT, outcome="rejected", say="Sorry, I did not understand. Please repeat.",
                             **base)
         if intent in ANSWERS and self.pending is not None:
-            return self._answer(intent == "confirm", "voice", confidence, utterance=utterance)
+            return self._answer(intent == "confirm", "voice", confidence, utterance=utterance, now=now)
         if intent == "confirm":
             return Decision(intent, REJECT, outcome="rejected", say="There is nothing to confirm.", **base)
         if intent == "unknown":
@@ -103,7 +104,7 @@ class Dialog:
         if intent is None:
             return None
         if intent in ANSWERS and self.pending is not None:
-            return self._answer(intent == "confirm", "gesture", confidence, gesture=gesture)
+            return self._answer(intent == "confirm", "gesture", confidence, gesture=gesture, now=now)
         if intent == "confirm" or gesture_intent == "reject":
             return Decision(intent, REJECT, confidence, "gesture", gesture=gesture, outcome="rejected",
                             say="There is nothing to confirm.")
@@ -148,13 +149,14 @@ class Dialog:
                                                  "Say yes or show thumb up.", **base)
         return Decision(intent, ACCEPT, say=f"{spoken(intent, target).capitalize()}, executing.", **base)
 
-    def _answer(self, yes, modality, confidence, utterance="", gesture=""):
+    def _answer(self, yes, modality, confidence, utterance="", gesture="", now=None):
         p, self.pending = self.pending, None
+        answer_s = None if now is None else now - p.window_start
         if yes:
             return Decision(p.intent, ACCEPT, max(p.confidence, confidence),
                             "fused" if modality != p.modality else modality, target=p.target,
                             utterance=p.utterance or utterance, gesture=gesture or p.gesture,
-                            outcome="correct", correct=True,
+                            outcome="correct", correct=True, answer_s=answer_s,
                             say=f"{spoken(p.intent, p.target).capitalize()}, executing.")
         return Decision("cancel", ACCEPT, confidence, modality, utterance=utterance, gesture=gesture,
-                        target=p.target, outcome="misrecognized", say=f"Cancelled {spoken(p.intent, p.target)}.")
+                        target=p.target, outcome="misrecognized", answer_s=answer_s, say=f"Cancelled {spoken(p.intent, p.target)}.")

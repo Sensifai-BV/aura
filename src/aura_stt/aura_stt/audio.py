@@ -18,6 +18,7 @@ class SampleBuffer:
         self._data = np.empty(0, dtype=np.float32)
         self._start = 0
         self._closed = False
+        self.opened_at = time.monotonic()  # speech onset (after pre-roll), for debug metrics
         self.closed_at = None  # monotonic time of the endpoint, for final-result latency
 
     def write(self, block):

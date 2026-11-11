@@ -22,6 +22,7 @@ from std_msgs.msg import Bool, String
 from .config import TtsConfig, resolve_model_dir
 from .engine import PhraseCache, SherpaTts
 from .normalize import normalize
+from .metrics import stats
 from .player import make_player
 from .speaker import Speaker
 
@@ -59,6 +60,12 @@ class TtsNode(Node):
         self.speaking_pub = self.create_publisher(Bool, config.speaking_topic, latched)
         self.status_pub = self.create_publisher(ModuleStatus, config.status_topic, 10)
         self.speaking_pub.publish(Bool(data=False))
+        self.metrics = None
+        if config.debug:
+            from .metrics import MetricsLog
+            self.metrics = MetricsLog(config.metrics_dir, "tts", [
+                "text", "chars", "cached", "first_audio_ms", "synth_ms", "audio_s", "interrupted", "error", "model_id"])
+            self.get_logger().info(f"debug: metrics to {self.metrics.path}")
         self.create_subscription(String, config.say_topic, self._on_say, 10)
         self.create_timer(0.01, self._publish)
         if config.diagnostics_period_s > 0:
@@ -85,6 +92,10 @@ class TtsNode(Node):
                 continue
             u = value
             self.recent.append((time.time(), u))
+            if self.metrics is not None:
+                self.metrics.row(text=u.text, chars=len(u.text), cached=int(u.cached), first_audio_ms=u.first_audio_ms,
+                                 synth_ms=u.synth_ms, audio_s=u.audio_s, interrupted=int(u.interrupted),
+                                 error=u.error, model_id=self.model_id)
             if u.error:
                 self.failure = u.error
                 self.get_logger().error(f"Speech failed for {u.text!r}: {u.error}")
@@ -116,6 +127,20 @@ class TtsNode(Node):
     def close(self):
         self.speaker.close()
         self.speaker.player.close()
+        if self.metrics is not None:
+            m = self.metrics
+            played = lambda r: not r["error"] and r["first_audio_ms"] > 0
+            rows = [("prompts", len(m.rows), "", ""),
+                    ("cached prompts", sum(r["cached"] for r in m.rows), "", "no synthesis delay"),
+                    ("interrupted by a newer prompt", sum(r["interrupted"] for r in m.rows), "", ""),
+                    ("errors", sum(1 for r in m.rows if r["error"]), "", ""),
+                    ("audio played", round(sum(r["audio_s"] for r in m.rows), 1), "s", "")]
+            rows += stats("first audio", m.column("first_audio_ms", played), note="prompt received -> playback start")
+            rows += stats("first audio (synthesised)", m.column("first_audio_ms", lambda r: played(r) and not r["cached"]))
+            rows += stats("first audio (cached)", m.column("first_audio_ms", lambda r: played(r) and r["cached"]))
+            rows += stats("synthesis", m.column("synth_ms", lambda r: not r["cached"]), note="all sentences of a prompt")
+            path = m.close(rows)
+            self.get_logger().info(f"debug: metrics summary in {path}")
 
 
 def main(args=None):

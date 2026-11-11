@@ -13,6 +13,7 @@ def test_defaults_are_valid():
 
 @pytest.mark.parametrize("change", [
     {"min_votes": 9},
+    {"debug": "true"}, {"metrics_dir": ""},
     {"gestures": ["thumb_up", "wave"], "intents": ["confirm", "x"], "thresholds": [0.8, 0.8], "votes": [5, 5]},
     {"thresholds": [0.8, 0.8, 0.1, 0.8, 0.8]},  # below min_detection_score
     {"votes": [5, 5, 3, 5]},

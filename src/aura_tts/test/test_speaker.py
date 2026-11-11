@@ -133,6 +133,7 @@ def test_default_config_is_valid():
 @pytest.mark.parametrize("change", [
     {"num_threads": 0}, {"speed": 3.0}, {"gain": 0}, {"voice": -1},
     {"speaking_topic": "/aura/speaker/say"}, {"model_dir": ""}, {"normalize_text": "yes"},
+    {"debug": "true"}, {"metrics_dir": ""},
 ])
 def test_config_rejects_bad_values(change):
     with pytest.raises(ValueError):

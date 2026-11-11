@@ -43,3 +43,5 @@ aura_gesture:
     # Annotated debug stream for rqt_image_view/Foxglove (extra JPEG encode per frame)
     publish_debug_image: false
     debug_image_topic: /aura/gesture/debug_image/compressed
+    debug: false                 # true: metrics CSV, one row per accepted gesture + summary at shutdown (launch: debug:=true)
+    metrics_dir: aura_metrics    # relative to the working directory

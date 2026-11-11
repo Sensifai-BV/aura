@@ -15,6 +15,8 @@ aura_stt:
     latency_ms: 560
     num_threads: 4
     debug_audio: false
+    debug: false                 # true: metrics CSV, one row per utterance + summary at shutdown (launch: debug:=true)
+    metrics_dir: aura_metrics    # relative to the working directory
     transcript_topic: /aura_transcript
     partial_topic: /aura_partial_transcript
     # Mute the microphone while aura_tts plays (and echo_tail_s after), so the robot

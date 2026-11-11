@@ -50,6 +50,30 @@ how a robot connects to the broker over DDS (ports, discovery, how to run and ch
 [fiware/docs/DDS_INTEGRATION.md](fiware/docs/DDS_INTEGRATION.md); the full-stack test tooling is in
 [tools/integration/README.md](tools/integration/README.md).
 
+## Debug metrics for experiment reports
+
+Every module records its own measurements when started with `debug:=true` (launch) or `-p debug:=true` (`ros2 run`):
+one CSV row per event, flushed at once, and a summary when the node shuts down (Ctrl+C). Files go to `metrics_dir`
+(default `aura_metrics/`, relative to the working directory) as `<module>_<UTC start>.csv` and `..._summary.csv`
+(`metric, value, unit, note`). Nothing changes on the ROS topics.
+
+```bash
+ros2 launch aura_stt stt.launch.py debug:=true metrics_dir:=/data/aura_metrics/exp5
+ros2 launch aura_intent intent.launch.py debug:=true metrics_dir:=/data/aura_metrics/exp5
+ros2 launch aura_tts tts.launch.py debug:=true metrics_dir:=/data/aura_metrics/exp5
+ros2 launch aura_gesture gesture.launch.py debug:=true metrics_dir:=/data/aura_metrics/exp5
+```
+
+| Module | One row per | Columns | Summary |
+| --- | --- | --- | --- |
+| `aura_stt` | utterance (also empty decodes of noise) | text, words, speech_s, final_latency_ms (end of speech → final), first_partial_ms, partials, robot_spoke_s (muted by the echo gate inside it) | utterances, empty decodes, echo-gate time, final latency / first partial / speech duration (count, mean, p50, p95, max) |
+| `aura_intent` | decision (IntentEvent) | event_id, decision, intent, target, modality, confidence, latency_ms, parse_ms (LLM), answer_s (end of the question → answer), utterance, gesture, outcome, say, thresholds | decisions by type, questions asked / answered yes / no / timed out, answer rate, safety commands, confidence, decision latency, inference time, answer time |
+| `aura_gesture` | accepted gesture | gesture, intent, confidence (window mean), frame_confidence, threshold, votes, latency_ms, inference_ms, provider | frames received / processed / dropped / stale, fps, accepted per gesture with mean confidence, inference and latency per frame |
+| `aura_tts` | prompt | text, cached, first_audio_ms (prompt → playback), synth_ms, audio_s, interrupted, error | prompts, cached, interrupted, first audio (all / synthesised / cached), synthesis time |
+
+The time-to-safe-stop and false activations are known only to the robot; its adapter reports them on
+`/aura/intent/event` (see `fiware/docs/DATA_MODEL.md`).
+
 ## FIWARE condition monitoring (ARISE middleware)
 
 `fiware/` runs the ARISE all-in-one middleware locally: Orion-LD with native ROS 2 / DDS bridging, TimescaleDB,
@@ -417,7 +441,7 @@ Run with a local camera (`source` is a device index, a V4L2 path or an MJPEG URL
 
 ```bash
 ros2 launch aura_gesture gesture.launch.py source:=/dev/video0
-ros2 launch aura_gesture gesture.launch.py source:=/dev/video0 debug:=true   # annotated stream
+ros2 launch aura_gesture gesture.launch.py source:=/dev/video0 debug_image:=true   # annotated stream
 ros2 topic echo /aura/gesture/intent
 ```
 

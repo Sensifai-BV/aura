@@ -22,6 +22,7 @@ from aura_interfaces.msg import ArtabanStatus, EnvironmentReading, GestureIntent
 
 from .config import IntentConfig, resolve_model_path
 from .dialog import DECISION_NAMES, IGNORE, REJECT, Dialog
+from .metrics import stats
 
 WINDOW_S = 60.0
 
@@ -67,6 +68,14 @@ class IntentNode(Node):
         self.create_timer(0.02, self._publish)
         if config.diagnostics_period_s > 0:
             self.create_timer(config.diagnostics_period_s, self._diagnostics)
+        self.metrics = None
+        if config.debug:
+            from .metrics import MetricsLog
+            self.metrics = MetricsLog(config.metrics_dir, "intent", [
+                "event_id", "mission_id", "decision", "intent", "target", "modality", "confidence", "latency_ms",
+                "parse_ms", "answer_s", "utterance", "gesture", "outcome", "correct", "say", "safety_critical", "engaged",
+                "noise_db", "acoustic_condition", "accept_threshold", "reject_threshold", "model_id"])
+            self.get_logger().info(f"debug: metrics to {self.metrics.path}")
         self.thread = threading.Thread(target=self._parse, name="aura-intent", daemon=True)
         self.thread.start()
         self.get_logger().info(
@@ -121,7 +130,7 @@ class IntentNode(Node):
                     expired = self.dialog.expire(now)
                     decision = self.dialog.on_voice(text, parse.intent, parse.target, parse.confidence, now)
                 latency = (now - received) * 1000
-                for item in ((expired, 0.0), (decision, latency)):
+                for item in ((expired, 0.0, None), (decision, latency, parse.inference_ms)):
                     if item[0] is not None:
                         self._emit(item)
                 self.get_logger().debug(f"{text!r} -> {parse.intent} {parse.target!r} "
@@ -148,16 +157,16 @@ class IntentNode(Node):
             self._publish_decision(expired, 0.0)
         for _ in range(64):
             try:
-                decision, latency = self.results.get_nowait()
+                decision, latency, parse_ms = self.results.get_nowait()
             except queue.Empty:
                 break
-            self._publish_decision(decision, latency)
+            self._publish_decision(decision, latency, parse_ms)
 
     @property
     def acoustic_condition(self):
         return "noise" if self.noise_db > self.config.noise_threshold_db else "clean"
 
-    def _publish_decision(self, d, latency_ms):
+    def _publish_decision(self, d, latency_ms, parse_ms=None):
         cfg = self.config
         self.counter += 1
         msg = IntentEvent()
@@ -185,6 +194,14 @@ class IntentNode(Node):
         if d.say:
             self.speaker_pub.publish(String(data=d.say))
         self.recent.append((time.time(), latency_ms, d.engaged))
+        if self.metrics is not None:
+            self.metrics.row(event_id=msg.event_id, mission_id=msg.mission_id, decision=DECISION_NAMES[d.decision],
+                             intent=msg.intent, target=d.target, modality=d.modality, confidence=d.confidence,
+                             latency_ms=latency_ms, parse_ms=parse_ms, answer_s=d.answer_s, utterance=d.utterance,
+                             gesture=d.gesture, outcome=d.outcome, correct=int(d.correct), say=d.say,
+                             safety_critical=int(d.safety_critical), engaged=int(d.engaged), noise_db=msg.noise_db,
+                             acoustic_condition=msg.acoustic_condition, accept_threshold=cfg.accept_threshold,
+                             reject_threshold=cfg.reject_threshold, model_id=self.model_id)
         if d.decision != IGNORE:
             target = f" [{d.target}]" if d.target else ""
             text = (f"{msg.event_id} {DECISION_NAMES[d.decision]} {d.intent}{target} ({d.modality}) "
@@ -222,6 +239,39 @@ class IntentNode(Node):
             self.thread.join(timeout=5)
             if self.thread.is_alive():
                 self.get_logger().warning("Parser worker did not finish within shutdown timeout")
+        if self.metrics is not None:
+            self.get_logger().info(f"debug: metrics summary in {self.metrics.close(self._summary())}")
+
+    def _summary(self):
+        m = self.metrics
+        cmds = [r for r in m.rows if r["decision"] != "IGNORE"]
+        count = lambda pred: sum(1 for r in m.rows if pred(r))
+        asked = count(lambda r: r["decision"] == "CONFIRM")
+        yes = count(lambda r: r["outcome"] == "correct")
+        no = count(lambda r: r["outcome"] == "misrecognized")
+        timeouts = count(lambda r: r["say"] == "No answer, command dropped.")
+        rows = [("decisions", len(m.rows), "", ""), ("commands (not IGNORE)", len(cmds), "", ""),
+                ("ignored (not addressed to the robot)", len(m.rows) - len(cmds), "", "engagement gate")]
+        rows += [(name, count(lambda r, n=name: r["decision"] == n), "", "") for name in ("ACCEPT", "CONFIRM", "REJECT")]
+        rows += [("questions asked", asked, "", "confirm_mode " + self.config.confirm_mode),
+                 ("answered yes / thumb up", yes, "", "outcome correct"),
+                 ("answered no / thumb down", no, "", "outcome misrecognized"),
+                 ("not answered in time", timeouts, "", f"confirm_timeout_s {self.config.confirm_timeout_s}"),
+                 ("answer rate", round(100 * (yes + no) / asked, 1) if asked else None, "%", ""),
+                 ("rejected below reject_threshold", count(lambda r: r["decision"] == "REJECT" and r["parse_ms"] is not None
+                                                          and r["confidence"] < r["reject_threshold"]), "", ""),
+                 ("safety commands executed", count(lambda r: r["decision"] == "ACCEPT" and r["safety_critical"]), "",
+                  "stop, pause, cancel")]
+        for modality in ("voice", "gesture", "fused"):
+            rows.append((f"{modality} decisions", count(lambda r, mo=modality: r["modality"] == mo
+                                                       and r["decision"] != "IGNORE"), "", ""))
+        rows += stats("confidence (ACCEPT)", m.column("confidence", lambda r: r["decision"] == "ACCEPT"), unit="",
+                      digits=3)
+        rows += stats("decision latency", m.column("latency_ms", lambda r: r["latency_ms"]),
+                      note="transcript or gesture received -> decision")
+        rows += stats("model inference", m.column("parse_ms"), note="LLM parse of one transcript")
+        rows += stats("answer time", m.column("answer_s"), unit="s", digits=2, note="end of question -> answer")
+        return rows
 
 
 def main(args=None):

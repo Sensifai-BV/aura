@@ -106,6 +106,17 @@ def test_answer_window_expires_after_spoken_question():
     assert d.expire(12.1).decision == REJECT
 
 
+def test_answer_time_is_measured_from_the_end_of_the_question():
+    d = Dialog(confirm_timeout_s=12.0)
+    d.on_voice("next", "next_step", "", 0.8, now=0.0)
+    d.on_speaking(True, now=0.3)
+    d.on_speaking(False, now=4.5)
+    out = d.on_gesture("thumb_up", "confirm", 0.62, now=6.0)
+    assert out.decision == ACCEPT and abs(out.answer_s - 1.5) < 1e-9
+    d.on_voice("next", "next_step", "", 0.8, now=10.0)  # no playback state: from the question
+    assert abs(d.on_voice("no", "cancel", "", 0.9, now=13.0).answer_s - 3.0) < 1e-9
+
+
 def test_question_that_never_finishes_playing_is_dropped():
     d = Dialog(confirm_timeout_s=8.0)
     d.on_voice("next", "next_step", "", 0.8, now=0.0)

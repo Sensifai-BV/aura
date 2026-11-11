@@ -12,7 +12,9 @@ def launch_node(context):
     latency = LaunchConfiguration("latency_ms").perform(context)
     if latency:
         parameters.append({"latency_ms": int(latency)})
-    for name in ("input_device", "device"):
+    if LaunchConfiguration("debug").perform(context).lower() == "true":
+        parameters.append({"debug": True})
+    for name in ("input_device", "device", "metrics_dir"):
         value = LaunchConfiguration(name).perform(context)
         if value:
             parameters.append({name: value})
@@ -28,6 +30,9 @@ def generate_launch_description():
                               description="Override YAML latency: 80, 160, 560 or 1120 ms"),
         DeclareLaunchArgument("input_device", default_value="",
                               description="Override YAML microphone: index or name"),
+        DeclareLaunchArgument("debug", default_value="false",
+                              description="Write metrics CSV (one row per utterance)"),
+        DeclareLaunchArgument("metrics_dir", default_value="", description="Override YAML metrics_dir"),
         DeclareLaunchArgument("device", default_value="",
                               description="Override YAML ASR device: auto, cpu, mps, cuda or cuda:<index>"),
         OpaqueFunction(function=launch_node),

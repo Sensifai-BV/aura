@@ -20,7 +20,9 @@ def resolve_model_path(path, package="aura_gesture"):
 
         shared = Path(get_package_share_directory(package)) / p
     except Exception:  # noqa: BLE001 - not in a ROS environment (unit tests)
-        shared = Path(__file__).resolve().parents[1] / p
+        package = Path(__file__).resolve().parents[1]
+        # the source tree keeps the bundled model in model/; colcon installs it to share/.../model/gesture/
+        shared = next((c for c in (package / p, package / "model" / p.name) if c.exists()), package / p)
     return shared if shared.exists() else p
 
 
@@ -92,6 +94,8 @@ class GestureConfig:
     # Annotated JPEG (boxes, labels, confidence, decision) for rqt/Foxglove; costs an encode per frame
     publish_debug_image: bool = False
     debug_image_topic: str = "/aura/gesture/debug_image/compressed"
+    debug: bool = False                 # write one CSV row per accepted gesture and a summary (metrics.py)
+    metrics_dir: str = "aura_metrics"   # relative to the working directory
 
     @classmethod
     def defaults(cls):
@@ -125,6 +129,8 @@ class GestureConfig:
     def validate(self):
         if not isinstance(self.providers, str) or not isinstance(self.model_id, str):
             raise ValueError("providers and model_id must be strings")
+        if type(self.debug) is not bool or not isinstance(self.metrics_dir, str) or not self.metrics_dir.strip():
+            raise ValueError("debug must be true or false and metrics_dir a non-empty path")
         if type(self.publish_debug_image) is not bool:
             raise ValueError("publish_debug_image must be true or false")
         for name in ("model_path", "image_topic", "hypothesis_topic", "intent_topic", "detections_topic",

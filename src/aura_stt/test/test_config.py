@@ -33,7 +33,7 @@ class ConfigTests(unittest.TestCase):
             self.assertEqual(SttConfig.from_parameters({"model_dir": "model"}).model_dir, "/local/model")
         with patch.dict(os.environ, {"AURA_STT_MODEL_DIR": ""}):
             self.assertEqual(SttConfig.from_parameters({"model_dir": "model"}).model_dir, "model")
-        for values in ({"echo_tail_s": -0.1}, {"speaking_topic": 1}):
+        for values in ({"echo_tail_s": -0.1}, {"speaking_topic": 1}, {"debug": "true"}, {"metrics_dir": ""}):
             with self.subTest(values=values), self.assertRaises(ValueError):
                 SttConfig.from_mapping({"model_dir": "/local/model", **values})
         for requested, expected in (("", None), ("1", 1), ("USB microphone", "USB microphone")):

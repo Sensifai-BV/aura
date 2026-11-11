@@ -27,3 +27,5 @@ aura_tts:
       - "No answer, command dropped."
     max_chars: 400
     diagnostics_period_s: 1.0
+    debug: false                 # true: metrics CSV, one row per prompt + summary at shutdown (launch: debug:=true)
+    metrics_dir: aura_metrics    # relative to the working directory
