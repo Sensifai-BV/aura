@@ -28,6 +28,21 @@ class FakeAudio:
 
 
 class MicrophoneTests(unittest.TestCase):
+    def test_converter_uses_the_selected_channel(self):
+        audio = np.stack([np.full(640, 0.5, np.float32), np.full(640, -0.5, np.float32)], axis=1)
+        ch0 = np.concatenate(AudioConverter(16000, 0).process(audio))
+        ch1 = np.concatenate(AudioConverter(16000, 1).process(audio))
+        mean = np.concatenate(AudioConverter(16000, -1).process(audio))
+        self.assertTrue(np.allclose(ch0, 0.5) and np.allclose(ch1, -0.5) and np.allclose(mean, 0.0))
+
+    def test_selected_channel_must_be_captured(self):
+        device = select_microphone(SttConfig(input_channel=1), FakeAudio())
+        self.assertEqual((device.index, device.channels), (1, 2))
+        audio = FakeAudio()
+        audio.devices = audio.devices[:1]  # mono only
+        with self.assertRaises(RuntimeError):
+            select_microphone(SttConfig(input_channel=1), audio)
+
     def test_auto_selects_physical_usb_at_native_stereo_rate(self):
         device = select_microphone(SttConfig(), FakeAudio())
         self.assertEqual((device.index, device.sample_rate, device.channels), (1, 48000, 2))

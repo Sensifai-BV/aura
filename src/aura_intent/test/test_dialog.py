@@ -9,7 +9,7 @@ from aura_intent.schema import LABELS, NONE, answer
 def test_voice_command_asks_then_voice_yes_executes():
     d = Dialog()
     ask = d.on_voice("come follow", "come_follow", "", 0.9, now=0.0)
-    assert ask.decision == CONFIRM and "come follow" in ask.say and d.pending is not None
+    assert ask.decision == CONFIRM and "follow me" in ask.say and d.pending is not None
     done = d.on_voice("yes", "confirm", "", 0.95, now=2.0)
     assert done.decision == ACCEPT and done.intent == "come_follow" and done.outcome == "correct"
     assert done.modality == "voice" and done.correct and d.pending is None
@@ -49,6 +49,43 @@ def test_safety_critical_never_waits(intent):
 def test_cancel_without_pending_executes():
     out = Dialog().on_voice("abort", "cancel", "", 0.9, now=0.0)
     assert out.decision == ACCEPT and out.intent == "cancel" and out.outcome == ""
+
+
+def test_doubtful_cancel_needs_the_wake_word():
+    # 12 Nov, S12144000-0004: side talk parsed as cancel at 0.53 was executed
+    out = Dialog().on_voice("we can cancel that later", "cancel", "", 0.53, now=0.0)
+    assert out.decision == IGNORE and not out.engaged and out.say == ""
+    out = Dialog().on_voice("Artavan cancel", "cancel", "", 0.53, now=0.0)
+    assert out.decision == ACCEPT and out.intent == "cancel"
+    d = Dialog()
+    d.on_voice("next", "next_step", "", 0.8, now=0.0)
+    out = d.on_voice("no", "cancel", "", 0.53, now=1.0)  # an answer to a question needs no wake word
+    assert out.decision == ACCEPT and out.outcome == "misrecognized"
+
+
+@pytest.mark.parametrize("intent", ["stop", "pause"])
+def test_doubtful_stop_still_executes_without_wake_word(intent):
+    out = Dialog().on_voice("just " + intent, intent, "", 0.55, now=0.0)
+    assert out.decision == ACCEPT
+
+
+def test_resume_during_protective_stop_asks_for_release():
+    d = Dialog()
+    d.on_robot_status("protective-stop")
+    out = d.on_voice("resume the mission", "resume", "", 0.99, now=0.0)
+    assert out.decision == REJECT and out.say == "Stopped. The operator must release." and d.pending is None
+    d.on_robot_status("nominal")
+    assert d.on_voice("resume the mission", "resume", "", 0.99, now=1.0).decision == CONFIRM
+    d.on_robot_status("protective-stop")  # stopped while the question was pending
+    out = d.on_voice("yes", "confirm", "", 0.95, now=2.0)
+    assert out.decision == REJECT and out.say == "Stopped. The operator must release." and d.pending is None
+
+
+def test_questions_use_the_operators_words():
+    d = Dialog()
+    assert d.on_voice("next waypoint", "next_step", "", 0.9, now=0.0).say == "Did you say next waypoint?"
+    assert d.on_gesture("point", "select", 0.9, now=1.0).say == "Did you say go there?"
+    assert d.on_gesture("thumb_down", "reject", 0.9, now=2.0).say == "Cancelled go there."
 
 
 def test_fist_stops_and_clears_pending():
@@ -156,7 +193,7 @@ def test_thumb_with_nothing_pending_is_ignored_silently(gesture, intent):
 def test_question_is_short_and_holds_no_answer_word():
     d = Dialog()
     say = d.on_voice("follow me", "come_follow", "", 0.99, now=0.0).say
-    assert say == "Did you say come follow?"
+    assert say == "Did you say follow me?"
     assert not {"yes", "no", "stop", "pause", "cancel"} & set(say.lower().strip("?").split())
 
 

@@ -115,6 +115,8 @@ class IntentNode(Node):
     def _on_status(self, msg):
         if not self.config.mission_id and msg.mission_id:
             self.mission_id = msg.mission_id
+        with self.lock:
+            self.dialog.on_robot_status(msg.safety_state)
 
     def _on_environment(self, msg):
         self.noise_db = float(msg.la_eq)

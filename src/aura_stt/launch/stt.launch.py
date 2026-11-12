@@ -18,6 +18,10 @@ def launch_node(context):
         value = LaunchConfiguration(name).perform(context)
         if value:
             parameters.append({name: value})
+    for name, cast in (("input_channel", int), ("max_utterance_s", float)):
+        value = LaunchConfiguration(name).perform(context)
+        if value:
+            parameters.append({name: cast(value)})
     tail = LaunchConfiguration("echo_tail_s").perform(context)
     if tail:
         parameters.append({"echo_tail_s": float(tail)})
@@ -44,6 +48,10 @@ def generate_launch_description():
                               description="Override YAML echo_mode: filter (hear the operator while the robot talks) or mute"),
         DeclareLaunchArgument("echo_tail_s", default_value="",
                               description="Override YAML echo_tail_s (seconds after robot speech still treated as echo)"),
+        DeclareLaunchArgument("input_channel", default_value="",
+                              description="Override YAML input_channel: capture channel STT uses, -1 = average"),
+        DeclareLaunchArgument("max_utterance_s", default_value="",
+                              description="Override YAML max_utterance_s (longest utterance, seconds)"),
         DeclareLaunchArgument("record_audio", default_value="false",
                               description="Save every utterance as a WAV in <metrics_dir>/audio"),
         OpaqueFunction(function=launch_node),

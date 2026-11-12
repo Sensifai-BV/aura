@@ -18,7 +18,7 @@ from std_msgs.msg import Bool, String
 
 from .asr import StreamingTranscriber
 from .audio import SAMPLE_RATE, EchoGate, UtteranceSegmenter
-from .echo import EchoFilter, RobotSpeech
+from .echo import EchoFilter, RobotSpeech, partial_safety
 from .metrics import stats
 from .config import SttConfig
 from .replay import WaveReplay
@@ -99,8 +99,9 @@ class SttNode(Node):
                 self.stream = MicrophoneCapture(config, self._ingest_audio,
                                                 self._capture_finished, self._fail)
                 device = self.stream.device
+                channel = (f"ch{config.input_channel}" if config.input_channel >= 0 else "average")
                 source_name = (f"dev#{device.index} {device.name}; "
-                               f"{device.sample_rate} Hz/{device.channels}ch -> 16000 Hz mono")
+                               f"{device.sample_rate} Hz/{device.channels}ch, {channel} -> 16000 Hz mono")
             self.create_timer(0.02, self._publish)
             self.create_timer(1.0, self._status)
             for target, name in ((self._segment_audio, "aura-audio"), (self._recognize, "aura-asr")):
@@ -215,9 +216,11 @@ class SttNode(Node):
                 def on_partial(text):
                     partials.append(time.monotonic())
                     self._emit("partial", text)
-                    if self.echo_filter is not None and not early:
-                        # The utterance ends only after the robot stops talking: send a stop now.
-                        safety = self.echo_filter.early_safety(text, buffer.opened_at, time.monotonic())
+                    if self.config.partial_safety and not early:
+                        # Send a stop now: the utterance may end only when the robot stops talking or
+                        # walking. Robot words are removed first when the echo filter is on.
+                        safety = (self.echo_filter.early_safety(text, buffer.opened_at, time.monotonic())
+                                  if self.echo_filter is not None else partial_safety(text))
                         if safety:
                             early.append(safety)
                             self.final_times.append(time.time())
@@ -370,11 +373,11 @@ class SttNode(Node):
                       "transcript was only the robot's own words"),
                      ("forwarded during robot speech", sum(1 for r in overlap if r["forwarded"]), "",
                       "operator words left after removing the robot's"),
-                     ("robot words removed", sum(r["echo_removed"] for r in m.rows), "", ""),
-                     ("early safety finals", sum(r["early_safety"] for r in m.rows), "",
-                      "stop/pause sent from a partial while the robot talked")]
+                     ("robot words removed", sum(r["echo_removed"] for r in m.rows), "", "")]
         else:
             rows.append(("microphone muted (echo gate)", round(self.muted_samples / SAMPLE_RATE, 1), "s", ""))
+        rows.append(("early safety finals", sum(r["early_safety"] for r in m.rows), "",
+                     "stop/pause sent from a partial transcript"))
         rows.append(("latency setting", self.config.latency_ms, "ms", ""))
         rows += stats("final latency", m.column("final_latency_ms", lambda r: r["text"]),
                       note="end of speech -> final transcript")

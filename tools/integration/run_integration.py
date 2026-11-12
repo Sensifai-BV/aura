@@ -443,8 +443,8 @@ def s03_confirm_by_voice(c):
     c.check("command recognised", rec is not None, rec)
     if rec:
         c.check("held for confirmation (CONFIRM)", rec["decision"] == "CONFIRM", rec["decision"])
-    _, say = c.obs.wait(lambda f: "Did you say come follow" in f["text"], "say", mark, 3)
-    c.check("speaker asks 'Did you say come follow?'", say is not None, say)
+    _, say = c.obs.wait(lambda f: "Did you say follow me" in f["text"], "say", mark, 3)
+    c.check("speaker asks 'Did you say follow me?'", say is not None, say)
     c.utter_cleanup()
     mark, end, t, rec = c.utter("yes, do it", expect=is_(decision="ACCEPT"))
     c.check("'yes' answers the pending question", rec is not None and rec["intent"] == "come_follow", rec)

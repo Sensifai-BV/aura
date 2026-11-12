@@ -14,6 +14,10 @@ class SttConfig:
     input_device: str = ""
     input_sample_rate: int = 0
     capture_channels: int = 0
+    # Which captured channel STT uses: 0 = the first (on the ReSpeaker the processed, beamformed channel
+    # with AGC), n = channel n, -1 = the average of all captured channels (before 12 Nov). Averaging the
+    # ReSpeaker's ch0 with a raw microphone lost the operator's voice in step noise.
+    input_channel: int = 0
     capture_block_ms: int = 100
     input_latency: float = 0.0
     prefer_usb: bool = True
@@ -41,7 +45,12 @@ class SttConfig:
     speech_threshold_db: float = -40.0
     silence_s: float = 0.8
     pre_roll_s: float = 0.3
-    max_utterance_s: float = 20.0
+    # An utterance closes after silence_s below speech_threshold_db, or at this length. Steady noise
+    # above the threshold (a walking robot) keeps it open until this limit (20 s before 12 Nov).
+    max_utterance_s: float = 6.0
+    # Send stop / pause from a partial transcript as soon as it shows them (echo.addressed_safety),
+    # instead of at the end of the utterance.
+    partial_safety: bool = True
 
     @classmethod
     def defaults(cls):
@@ -93,6 +102,12 @@ class SttConfig:
             raise ValueError("input_sample_rate must be 0 (auto) or a positive integer")
         if type(self.capture_channels) is not int or self.capture_channels < 0:
             raise ValueError("capture_channels must be 0 (auto) or a positive channel count")
+        if type(self.input_channel) is not int or self.input_channel < -1:
+            raise ValueError("input_channel must be -1 (average) or a channel index >= 0")
+        if self.capture_channels and self.input_channel >= self.capture_channels:
+            raise ValueError("input_channel must be below capture_channels")
+        if type(self.partial_safety) is not bool:
+            raise ValueError("partial_safety must be true or false")
         if type(self.capture_block_ms) is not int or not 10 <= self.capture_block_ms <= 200:
             raise ValueError("capture_block_ms must be between 10 and 200")
         if isinstance(self.input_latency, bool) or not isinstance(self.input_latency, (float, int)) or not math.isfinite(self.input_latency) or self.input_latency < 0:

@@ -7,6 +7,7 @@ aura_stt:
     input_device: ""
     input_sample_rate: 0  # auto: probe supported capture rates, preferring 48 kHz
     capture_channels: 0  # auto: try stereo, mono, then the full native channel count
+    input_channel: 0     # channel STT uses (ReSpeaker ch0 = processed/AGC); -1 = average of all channels
     capture_block_ms: 100
     input_latency: 0.0  # 0 uses the device's high-latency setting; otherwise seconds
     prefer_usb: true
@@ -37,4 +38,5 @@ aura_stt:
     speech_threshold_db: -40.0
     silence_s: 0.8
     pre_roll_s: 0.3
-    max_utterance_s: 20.0
+    max_utterance_s: 6.0   # an utterance under steady noise (walking) closes at this length
+    partial_safety: true   # send stop/pause from a partial transcript, not at the end of the utterance

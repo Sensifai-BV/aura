@@ -85,7 +85,7 @@ arrives as ROS 2 topics (contract in `fiware/docs/DATA_MODEL.md`; robot connecti
 ## Microphone speech-to-text (ROS2)
 
 `src/aura_stt` is an `ament_python` package. It captures microphone input
-at a supported hardware rate, downmixes to mono, and continuously resamples to
+at a supported hardware rate, takes one channel (or the average), and continuously resamples to
 16 kHz for the local fine-tuned NVIDIA Nemotron RNNT model on the edge device's
 CPU. The module supports streaming inference and NeMo-exported encoder adapters.
 The fine-tuned model files are hosted on Hugging Face at [sensifai/aura](https://huggingface.co/sensifai/aura), and loading uses local files only.
@@ -189,8 +189,11 @@ Every input device reported by PortAudio is eligible for capture, including USB,
 onboard, Bluetooth, audio interfaces and system/virtual inputs. Automatic
 selection prefers hardware inputs and, when enabled, USB inputs; other inputs
 remain available as fallbacks. An explicit `input_device` selects an index or
-an unambiguous name match. One input is selected for STT, and its capture
-channels are averaged to mono. DSP runs on a worker thread.
+an unambiguous name match. One input is selected for STT. `input_channel` picks
+the capture channel STT uses: 0 (default) is the first, which on the ReSpeaker is
+the processed, beamformed channel with AGC; -1 averages all captured channels.
+On the walking robot, averaging the ReSpeaker's ch0 with a raw microphone lost
+the operator's voice in step noise. DSP runs on a worker thread.
 
 `input_sample_rate: 0` probes supported rates, preferring 48 kHz; a positive
 value requires that rate. `capture_channels: 0` tries stereo, mono, then the
@@ -213,7 +216,11 @@ ros2 run aura_stt stt --ros-args -p model_dir:=/path/to/model \
 
 Speech starts when a 20 ms audio block exceeds `speech_threshold_db` (default
 −40 dBFS). `pre_roll_s` preserves preceding audio; `silence_s` ends a phrase
-after 0.8 seconds of quiet. `max_utterance_s` bounds a phrase at 20 seconds.
+after 0.8 seconds of quiet. `max_utterance_s` bounds a phrase at 6 seconds:
+steady noise above the threshold (a walking robot) keeps a phrase open until this
+limit. With `partial_safety: true` (default) a stop or pause is sent from the
+partial transcript as soon as it shows one addressed to the robot (after the wake
+word, among the first two words, or repeated), without waiting for the phrase to end.
 This energy gate needs tuning for room noise and microphone gain; it does not
 distinguish speech from loud machinery. Increase the threshold to reject noise,
 or lower it to capture quieter speech. Continuous speech reaching the duration
@@ -289,9 +296,9 @@ intent set and its sequence probability is the command confidence:
 | Intent | Example | Handling |
 | --- | --- | --- |
 | `stop`, `pause` | "Stop, there's a worker ahead" | safety-critical: executes at once |
-| `cancel` | "never mind" | answers "no" to a pending question, otherwise cancels at once |
+| `cancel` | "never mind" | answers "no" to a pending question, otherwise cancels at once (below the accept threshold only with the wake word) |
 | `confirm` | "yes, do it" | answers "yes" to a pending question |
-| `resume`, `next_step`, `come_follow` | "follow me" | held: "Did you say come follow?" |
+| `resume`, `next_step`, `come_follow` | "follow me" | held: "Did you say follow me?"; a resume during a protective stop gets "Stopped. The operator must release." |
 | `target_select` | "inspect valve seven" (target `valve seven`) | held as above |
 | `unknown` | "open the valve" | addressed but unsupported: rejected with feedback |
 | `none` | "Mike, follow the red line" | not addressed to the robot: `IGNORE`, no speech |

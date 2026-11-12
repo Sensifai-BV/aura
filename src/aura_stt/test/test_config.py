@@ -20,7 +20,8 @@ class ConfigTests(unittest.TestCase):
                        {"input_device": 1}, {"num_threads": 0}, {"audio_file": 1}, {"debug_audio": "true"},
                        {"input_sample_rate": -1}, {"capture_channels": -1},
                        {"capture_block_ms": 0}, {"input_latency": -1}, {"prefer_usb": "true"},
-                       {"partial_topic": "/aura_transcript"}):
+                       {"partial_topic": "/aura_transcript"}, {"input_channel": -2},
+                       {"input_channel": 2, "capture_channels": 2}, {"partial_safety": "yes"}):
             with self.subTest(values=values), self.assertRaises(ValueError):
                 SttConfig.from_mapping({"model_dir": "/local/model", **values})
         with self.assertRaises(ValueError):

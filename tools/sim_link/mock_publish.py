@@ -5,7 +5,7 @@ Every topic Orion-LD maps is published, the same contract the robot and the modu
 telemetry at 1 Hz, and every 15 s one operator exchange from a fixed cycle:
 
   stop (voice)       -> ACCEPT, then the adapter's feedback: at rest after 700 ms
-  next step + yes    -> CONFIRM, then ACCEPT correct (voice)
+  next waypoint + yes -> CONFIRM, then ACCEPT correct (voice)
   follow me + thumb  -> CONFIRM, then ACCEPT correct (fused)
   fist while talking -> ACCEPT stop (gesture), then the adapter's feedback: false activation
   side talk          -> IGNORE
@@ -133,20 +133,20 @@ class Mock:
         elif kind == 1:
             self.heard("next waypoint")
             ev = self.event("next_step", CONFIRM, "next waypoint", confidence=0.97)
-            self.say("Did you say next step?")
+            self.say("Did you say next waypoint?")
             time.sleep(5)
             self.heard("yes")
             self.event("next_step", ACCEPT, "next waypoint", confidence=0.97, outcome="correct", correct=True)
-            self.say("Next step, executing.")
+            self.say("Next waypoint, executing.")
         elif kind == 2:
             self.heard("follow me")
             self.event("come_follow", CONFIRM, "follow me", confidence=0.96)
-            self.say("Did you say come follow?")
+            self.say("Did you say follow me?")
             time.sleep(5)
             self.gesture("thumb_up", "confirm", 0.62)
             self.event("come_follow", ACCEPT, "follow me", gesture="thumb_up", modality="fused", confidence=0.96,
                        outcome="correct", correct=True)
-            self.say("Come follow, executing.")
+            self.say("Follow me, executing.")
         elif kind == 3:
             self.gesture("fist", "stop", 0.49)
             ev = self.event("stop", ACCEPT, gesture="fist", modality="gesture", confidence=0.49)

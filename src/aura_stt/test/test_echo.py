@@ -1,7 +1,7 @@
 import unittest
 
 from aura_stt.audio import EchoGate
-from aura_stt.echo import EchoFilter, RobotSpeech, strip_echo, words
+from aura_stt.echo import EchoFilter, RobotSpeech, addressed_safety, partial_safety, strip_echo, words
 
 
 def setup(*sentences):
@@ -70,9 +70,33 @@ class EchoFilterTests(unittest.TestCase):
         gate.speaking(True, now=10.0)
         self.assertEqual(EchoFilter(gate, speech).early_safety("Stop", 10.1, 10.6), "")
 
-    def test_early_safety_needs_robot_speech(self):
+    def test_early_safety_without_robot_speech_needs_an_addressed_stop(self):
         f = setup((10.0, 10.0, 11.7, "Stop, executing."))
-        self.assertEqual(f.early_safety("stop", 30.0, 31.0), "")
+        self.assertEqual(f.early_safety("Stop just stop", 30.0, 31.0), "Stop just stop")
+        self.assertEqual(f.early_safety("we should stop for lunch", 30.0, 31.0), "")
+
+
+class PartialSafetyTests(unittest.TestCase):
+    """12 Nov walking test: the utterances stayed open 16-20 s under step noise."""
+
+    def test_stop_at_the_start_of_the_utterance(self):
+        for text in ("Stop", "Just stop", "please stop", "Pause the mission"):
+            with self.subTest(text=text):
+                self.assertEqual(partial_safety(text), text)
+
+    def test_stop_after_the_wake_word(self):
+        for text in ("Artaban stop", "Hey Artavan, please stop", "can you hear me Arteman stop"):
+            with self.subTest(text=text):
+                self.assertTrue(addressed_safety(words(text)))
+
+    def test_repeated_stop(self):
+        self.assertEqual(partial_safety("Hey, you stop stop"), "Hey, you stop stop")
+
+    def test_conversation_is_not_a_stop(self):
+        for text in ("we should stop for lunch soon", "the test will stop at four", "did it pause there",
+                     "Hello, can you understand", ""):
+            with self.subTest(text=text):
+                self.assertEqual(partial_safety(text), "")
 
 
 if __name__ == "__main__":

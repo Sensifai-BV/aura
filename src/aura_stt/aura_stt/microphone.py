@@ -1,7 +1,7 @@
 """Device-independent input discovery, capture and worker resampling.
 
-One available audio input is selected for STT. Its capture channels are downmixed
-and converted continuously to 16 kHz; PortAudio callbacks never run DSP or ASR.
+One available audio input is selected for STT. One of its capture channels (input_channel), or
+their average, is converted continuously to 16 kHz; PortAudio callbacks never run DSP or ASR.
 """
 
 from dataclasses import dataclass
@@ -62,6 +62,11 @@ def select_microphone(config, audio_api=sd):
         native_channels = int(info["max_input_channels"])
         channel_options = ([config.capture_channels] if config.capture_channels else
                            list(dict.fromkeys((min(2, native_channels), 1, native_channels))))
+        needed = config.input_channel + 1  # the selected channel must be captured
+        if needed > native_channels:
+            failures.append(f"{info['name']} has no channel {config.input_channel}")
+            continue
+        channel_options = [c for c in channel_options if c >= needed] or [native_channels]
         if config.capture_channels > native_channels:
             failures.append(f"{info['name']} does not support {config.capture_channels} channels")
             continue
@@ -81,9 +86,11 @@ def select_microphone(config, audio_api=sd):
 
 
 class AudioConverter:
-    """Keep one resampling filter across callbacks and emit 20 ms mono blocks."""
+    """Keep one resampling filter across callbacks and emit 20 ms mono blocks.
+    channel: the capture channel to use, or -1 for the average of all channels."""
 
-    def __init__(self, sample_rate):
+    def __init__(self, sample_rate, channel=-1):
+        self.channel = channel
         self.resampler = (soxr.ResampleStream(sample_rate, SAMPLE_RATE, 1,
                                             dtype="float32", quality="HQ")
                           if sample_rate != SAMPLE_RATE else None)
@@ -91,7 +98,10 @@ class AudioConverter:
 
     def process(self, audio, last=False):
         audio = np.asarray(audio, dtype=np.float32)
-        mono = audio.mean(axis=1) if audio.ndim == 2 else audio
+        if audio.ndim == 2:
+            mono = audio[:, self.channel] if self.channel >= 0 else audio.mean(axis=1)
+        else:
+            mono = audio
         mono = np.ascontiguousarray(mono, dtype=np.float32)
         converted = self.resampler.resample_chunk(mono, last=last) if self.resampler else mono
         self.pending = np.concatenate((self.pending, converted))
@@ -108,7 +118,7 @@ class AudioConverter:
 class MicrophoneCapture:
     def __init__(self, config, on_audio, on_finished, on_error, audio_api=sd):
         self.device = select_microphone(config, audio_api)
-        self.converter = AudioConverter(self.device.sample_rate)
+        self.converter = AudioConverter(self.device.sample_rate, config.input_channel)
         self.on_audio = on_audio
         self.on_error = on_error
         self.stop_event = threading.Event()
