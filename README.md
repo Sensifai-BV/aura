@@ -298,7 +298,7 @@ intent set and its sequence probability is the command confidence:
 | `stop`, `pause` | "Stop, there's a worker ahead" | safety-critical: executes at once |
 | `cancel` | "never mind" | answers "no" to a pending question, otherwise cancels at once (below the accept threshold only with the wake word) |
 | `confirm` | "yes, do it" | answers "yes" to a pending question |
-| `resume`, `next_step`, `come_follow` | "follow me" | held: "Did you say follow me?"; a resume during a protective stop gets "Stopped. The operator must release." |
+| `resume`, `next_step`, `come_follow` | "follow me" | held: "Did you say follow me?"; a resume during a protective stop gets "Holding. The operator must release." |
 | `target_select` | "inspect valve seven" (target `valve seven`) | held as above |
 | `unknown` | "open the valve" | addressed but unsupported: rejected with feedback |
 | `none` | "Mike, follow the red line" | not addressed to the robot: `IGNORE`, no speech |

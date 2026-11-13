@@ -65,6 +65,13 @@ def _similar(a, b, threshold):
     return a == b or (len(a) > 2 and len(b) > 2 and SequenceMatcher(None, a, b).ratio() >= threshold)
 
 
+def _explains(heard, robot, threshold):
+    """A robot word explains a heard word when they are similar, or when the heard word is the start of
+    the robot word: a partial transcript shows "stop" while the robot's "stopped" is still being decoded
+    (13 Nov: "stop" vs "stopped" scores 0.73, below the similarity threshold, and stopped the robot)."""
+    return _similar(heard, robot, threshold) or (len(heard) >= 3 and robot.startswith(heard))
+
+
 def strip_echo(transcript_words, robot_words, similarity=0.75):
     """Transcript words that no robot word explains. Exact matches are used before fuzzy ones."""
     unused = list(robot_words)
@@ -76,7 +83,7 @@ def strip_echo(transcript_words, robot_words, similarity=0.75):
         else:
             pending.append(w)
     for w in pending:
-        match = next((r for r in unused if _similar(w, r, similarity)), None)
+        match = next((r for r in unused if _explains(w, r, similarity)), None)
         if match is None:
             left.append(w)
         else:

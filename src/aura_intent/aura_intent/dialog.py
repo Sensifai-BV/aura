@@ -16,8 +16,10 @@ echo filter of aura_stt can remove the question without removing the operator's
 ("next waypoint", "follow me", "go there"), not the intent label: in the field
 operators answered "no" to a correct "Did you say come follow?".
 
-A resume while the robot reports a protective stop is refused with "Stopped. The
+A resume while the robot reports a protective stop is refused with "Holding. The
 operator must release.": the motion gate never lifts a stop on a voice resume.
+The sentence holds no safety word: on 13 Nov the robot's own "Stopped" was heard as
+"stop" and stopped the robot.
 A voice "cancel" with nothing pending and a confidence below the accept threshold
 needs the wake word; otherwise it is treated as side talk.
 
@@ -42,7 +44,7 @@ GESTURE_INTENTS = {"confirm": "confirm", "reject": "cancel", "stop": "stop", "ca
 # How the robot names a command when it asks or confirms: the operator's words, not the intent label.
 SPOKEN = {"next_step": "next waypoint", "target_select": "go to", "come_follow": "follow me"}
 POINTED_TARGET = "pointed target"
-RELEASE_NEEDED = "Stopped. The operator must release."
+RELEASE_NEEDED = "Holding. The operator must release."
 
 WAKE_WORD = "artaban"
 _WORD = re.compile(r"[a-z]+")

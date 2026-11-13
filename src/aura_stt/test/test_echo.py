@@ -70,6 +70,16 @@ class EchoFilterTests(unittest.TestCase):
         gate.speaking(True, now=10.0)
         self.assertEqual(EchoFilter(gate, speech).early_safety("Stop", 10.1, 10.6), "")
 
+    def test_early_safety_ignores_a_truncated_robot_word(self):
+        """13 Nov S13115906-0031: the partial "stop" of the robot's own "Stopped. ..." stopped the robot."""
+        gate, speech = EchoGate(tail_s=0.4), RobotSpeech()
+        speech.said("Stopped. The operator must release.", 10.0)
+        gate.speaking(True, now=10.3)
+        f = EchoFilter(gate, speech)
+        self.assertEqual(f.early_safety("stop", 10.3, 11.1), "")
+        self.assertEqual(f.early_safety("Stop stop", 10.3, 11.5), "stop")  # the operator's own stop still counts
+        self.assertEqual(f.clean("Stopped", 10.3, 11.5)[0], "")
+
     def test_early_safety_without_robot_speech_needs_an_addressed_stop(self):
         f = setup((10.0, 10.0, 11.7, "Stop, executing."))
         self.assertEqual(f.early_safety("Stop just stop", 30.0, 31.0), "Stop just stop")

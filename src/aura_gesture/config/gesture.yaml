@@ -34,10 +34,12 @@ aura_gesture:
     # frame; votes = frames of the window at or above it. The confidence in GestureIntent is the
     # window mean (frames without the gesture count 0), so it is lower than the threshold.
     # Fist was 0.7 / 3 votes (~200 ms at 15 fps): a hand closing for a thumbs-up fired "stop".
-    thresholds: [0.8,      0.8,        0.8,   0.8,    0.8]
+    # point 0.9 / 7 of 8: on 13 Nov a hand resting on a laptop was taken for a point eight times
+    # (0.84-0.85 per frame, 7 of 8 votes), each asking "Did you say go there?".
+    thresholds: [0.8,      0.8,        0.8,   0.8,    0.9]
     # palm and point need 6 of 8 frames: on 11 Nov both fired unintended (palm at 0.78/0.81) while every
     # deliberate fist passed with 5 of 8. Thumbs only answer questions (ignored when none is pending).
-    votes:      [5,        5,          5,     6,      6]
+    votes:      [5,        5,          5,     6,      7]
     cooldown_s: 1.0
     rearm_frames: 3
     max_frame_age_s: 0.5

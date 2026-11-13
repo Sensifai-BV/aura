@@ -60,3 +60,22 @@ def test_idle_and_validation():
         TemporalGate(window=4, min_votes=5)
     with pytest.raises(ValueError):
         TemporalGate(window=4, min_votes=2, votes={"fist": 9})
+
+
+def test_launch_config_rejects_the_13_nov_resting_hand_point():
+    """13 Nov: a hand resting on a laptop gave point at 0.84-0.85 in 7 of 8 frames; a clear point still passes."""
+    import pathlib
+
+    import yaml
+
+    from aura_gesture.config import GestureConfig
+
+    path = pathlib.Path(__file__).resolve().parents[1] / "config" / "gesture.yaml"
+    params = next(v["ros__parameters"] for v in yaml.safe_load(path.read_text()).values()
+                  if "thresholds" in v.get("ros__parameters", {}))
+    cfg = GestureConfig.from_mapping({**GestureConfig.defaults(), **params})
+    make = lambda: TemporalGate(window=cfg.window, min_votes=cfg.min_votes, threshold=cfg.accept_threshold,
+                                thresholds=cfg.threshold_map, votes=cfg.votes_map)
+    resting = [("point", 0.85)] * 7 + [("none", 0.5)] + [("point", 0.84)] * 7
+    assert all(d.state != ACCEPTED for d in feed(make(), resting))
+    assert any(d.state == ACCEPTED for d in feed(make(), [("point", 0.93)] * 8))

@@ -36,7 +36,7 @@ aura_tts:
       - "There is nothing to confirm."
       - "Sorry, I cannot do that."
       - "No answer, command dropped."
-      - "Stopped. The operator must release."
+      - "Holding. The operator must release."
     max_chars: 400
     diagnostics_period_s: 1.0
     debug: false                 # true: metrics CSV, one row per prompt + summary at shutdown (launch: debug:=true)

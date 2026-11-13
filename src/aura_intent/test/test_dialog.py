@@ -73,12 +73,12 @@ def test_resume_during_protective_stop_asks_for_release():
     d = Dialog()
     d.on_robot_status("protective-stop")
     out = d.on_voice("resume the mission", "resume", "", 0.99, now=0.0)
-    assert out.decision == REJECT and out.say == "Stopped. The operator must release." and d.pending is None
+    assert out.decision == REJECT and out.say == "Holding. The operator must release." and d.pending is None
     d.on_robot_status("nominal")
     assert d.on_voice("resume the mission", "resume", "", 0.99, now=1.0).decision == CONFIRM
     d.on_robot_status("protective-stop")  # stopped while the question was pending
     out = d.on_voice("yes", "confirm", "", 0.95, now=2.0)
-    assert out.decision == REJECT and out.say == "Stopped. The operator must release." and d.pending is None
+    assert out.decision == REJECT and out.say == "Holding. The operator must release." and d.pending is None
 
 
 def test_questions_use_the_operators_words():

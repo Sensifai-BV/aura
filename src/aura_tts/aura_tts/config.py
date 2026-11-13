@@ -27,7 +27,7 @@ DEFAULT_PHRASES = (  # = aura_intent.dialog.FIXED_PHRASES (checked by aura_inten
     "There is nothing to confirm.",
     "Sorry, I cannot do that.",
     "No answer, command dropped.",
-    "Stopped. The operator must release.",
+    "Holding. The operator must release.",
 )
 
 
