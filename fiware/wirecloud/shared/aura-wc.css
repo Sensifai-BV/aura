@@ -37,3 +37,5 @@ body { overflow: hidden; }
 
 .wc-control { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); }
 .wc-status { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); margin-top: var(--space-3); font-size: 11px; }
+/* Sensor the robot does not have: muted text, empty bar, no status colour. */
+.wc-nosensor { color: var(--ink-muted); font-style: italic; }

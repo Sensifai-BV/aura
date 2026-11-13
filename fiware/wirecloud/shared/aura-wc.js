@@ -250,6 +250,12 @@
   };
   function num(v) { return typeof v === 'number' && isFinite(v) ? v : null; }
   function fmt(v, digits) { v = num(v); return v == null ? '—' : v.toFixed(digits == null ? 0 : digits); }
+  // Missing sensors: Artaban publishes 0 for a sensor it does not have. For quantities where 0 cannot be a real
+  // reading (O2, sound level, link latency, motor temperature) a 0 means "no sensor": shown as such, never as a red zero.
+  var NO_SENSOR = 'no sensor';
+  function sensed(v) { v = num(v); return v == null || v === 0 ? null : v; }
+  // True when every listed field of a message is 0 or missing: the message comes without its sensor package.
+  function allZero(m, keys) { m = m || {}; return keys.every(function (k) { return sensed(m[k]) == null; }); }
   function liveFlag(ent, staleAfterS) {
     if (!ent || !ent._observedAt) return false;
     return (Date.now() - Date.parse(ent._observedAt)) / 1000 > (staleAfterS || 15) ? 'stale' : true;
@@ -328,7 +334,7 @@
     upsert: upsert, patchAttrs: patchAttrs, prop: prop, request: request, pref: pref, subscribe: subscribe,
     useLink: useLink, useEntity: useEntity, useEntities: useEntities, useSeries: useSeries, useEventLog: useEventLog, useTick: useTick
   };
-  window.AuraW = { IDS: IDS, num: num, fmt: fmt, liveFlag: liveFlag, deltaOver: deltaOver, sparkOf: sparkOf, tone: tone, itemsOf: itemsOf, Empty: Empty,
+  window.AuraW = { IDS: IDS, num: num, fmt: fmt, NO_SENSOR: NO_SENSOR, sensed: sensed, allZero: allZero, liveFlag: liveFlag, deltaOver: deltaOver, sparkOf: sparkOf, tone: tone, itemsOf: itemsOf, Empty: Empty,
     msg: msg, data: data, diag: diag, robot: robot, DECISION: DECISION };
   window.AuraWC = { mount: mount, pref: pref };
 })();
